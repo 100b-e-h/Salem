@@ -38,7 +38,7 @@ class DrizzleDatabase {
     accountData: {
       name: string;
       type: "corrente" | "poupanca" | "carteira" | "corretora";
-      balance: number; // Valor em REAIS (será convertido para centavos)
+      balance: number; // Valor em CENTAVOS
       currency?: string;
     },
     userId: string
@@ -47,7 +47,7 @@ class DrizzleDatabase {
       userId,
       name: accountData.name,
       type: accountData.type,
-      balance: reaisToCentavos(accountData.balance), // Converte para centavos
+      balance: accountData.balance, // Já em centavos
       currency: accountData.currency || "BRL",
     };
 
@@ -61,7 +61,7 @@ class DrizzleDatabase {
     accountData: {
       name?: string;
       type?: "corrente" | "poupanca" | "carteira" | "corretora";
-      balance?: number; // Valor em REAIS (será convertido para centavos)
+      balance?: number; // Valor em CENTAVOS
       currency?: string;
     },
     userId: string
@@ -71,7 +71,7 @@ class DrizzleDatabase {
     if (accountData.name) updateData.name = accountData.name;
     if (accountData.type) updateData.type = accountData.type;
     if (accountData.balance !== undefined)
-      updateData.balance = reaisToCentavos(accountData.balance);
+      updateData.balance = accountData.balance;
     if (accountData.currency) updateData.currency = accountData.currency;
 
     const result = await db
