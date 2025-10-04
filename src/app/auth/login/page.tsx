@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 
-export default function LoginPage() {
+function LoginContent() {
     const { user } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -40,5 +40,20 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+                    <p className="mt-4 text-muted-foreground">Carregando...</p>
+                </div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     )
 }
