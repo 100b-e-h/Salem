@@ -1,4 +1,13 @@
-// Tipos base para o sistema Salem
+import type { CentavosValue, ReaisValue } from "@/utils/money";
+
+export type {
+  Account as DrizzleAccount,
+  Card as DrizzleCard,
+  Invoice as DrizzleInvoice,
+  NewAccount,
+  NewCard,
+  NewInvoice,
+} from "@/lib/schema";
 
 export interface Account {
   id: string;
@@ -15,23 +24,62 @@ export interface Card {
   alias: string;
   brand: string;
   totalLimit: number;
-  closingDay: number; // Dia do fechamento da fatura (1-31)
-  dueDay: number; // Dia do vencimento da fatura (1-31)
+  closingDay: number;
+  dueDay: number;
   currentInvoiceId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type InvoiceStatus = "prevista" | "fechada" | "paga";
+export type InvoiceStatus = "open" | "paid" | "overdue";
 
 export interface Invoice {
   id: string;
   cardId: string;
-  yearMonth: string; // YYYY-MM
+  month: number;
+  year: number;
+  totalAmount: number;
+  paidAmount: number;
+  dueDate: string;
   status: InvoiceStatus;
-  totalForecast: number;
-  totalClosed: number;
-  totalPaid: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AccountDisplay {
+  id: string;
+  name: string;
+  type: "corrente" | "poupanca" | "carteira" | "corretora";
+  balance: CentavosValue;
+  balanceInReais: ReaisValue;
+  currency: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CardDisplay {
+  id: string;
+  alias: string;
+  brand: string;
+  totalLimit: CentavosValue;
+  totalLimitInReais: ReaisValue;
+  closingDay: number;
+  dueDay: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InvoiceDisplay {
+  id: string;
+  cardId: string;
+  month: number;
+  year: number;
+  totalAmount: CentavosValue;
+  totalAmountInReais: ReaisValue;
+  paidAmount: CentavosValue;
+  paidAmountInReais: ReaisValue;
+  dueDate: string;
+  status: InvoiceStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,8 +127,8 @@ export interface Recurrence {
   categoryId: string;
   description: string;
   vendor: string;
-  indexation?: "fixo" | number; // Percentual de reajuste
-  rrule: string; // RRULE do iCal
+  indexation?: "fixo" | number;
+  rrule: string;
   nextDate: Date;
   endDate?: Date;
   status: RecurrenceStatus;
@@ -90,7 +138,7 @@ export interface Recurrence {
 }
 
 export interface Subscription extends Recurrence {
-  chargeDay: number; // Dia da cobrança (1-31)
+  chargeDay: number;
   currentValue: number;
   priceHistory: Array<{
     date: Date;
@@ -175,12 +223,11 @@ export interface AssetDailyReturn {
   date: Date;
   dailyReturn: number;
   endBalance: number;
-  indexRate?: number; // Taxa do índice do dia (se aplicável)
+  indexRate?: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Tipos para o frontend
 export interface DashboardData {
   currentInvoiceForecast: number;
   nextInvoiceForecast: number;
@@ -216,7 +263,6 @@ export interface FinancialSummary {
   totalCreditAvailable: number;
 }
 
-// Utilitários para filtros
 export interface FilterOptions {
   dateFrom?: Date;
   dateTo?: Date;
