@@ -31,11 +31,12 @@ async function getAuthenticatedUser() {
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthenticatedUser();
     const body = await request.json();
+    const params = await context.params;
     const card = await drizzleDb.updateCard(params.id, body, user.id);
     return NextResponse.json(card);
   } catch (error) {
@@ -49,10 +50,11 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthenticatedUser();
+    const params = await context.params;
     await drizzleDb.deleteCard(params.id, user.id);
     return NextResponse.json({ success: true });
   } catch (error) {
