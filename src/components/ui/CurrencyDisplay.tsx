@@ -1,63 +1,72 @@
-// Componente para exibir valores monetários
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+import { formatCentavosToMoney, type CentavosValue } from '@/utils/money';
 
-import React from 'react';
-import { formatCurrency } from '@/utils/financial';
+const currencyDisplayVariants = cva(
+    "font-medium",
+    {
+        variants: {
+            size: {
+                sm: "text-sm",
+                md: "text-base",
+                lg: "text-lg font-semibold",
+                xl: "text-2xl font-bold"
+            },
+            variant: {
+                positive: "text-green-600",
+                negative: "text-red-600",
+                neutral: "text-foreground"
+            }
+        },
+        defaultVariants: {
+            size: "md",
+            variant: "neutral"
+        }
+    }
+);
 
-interface CurrencyDisplayProps {
-    amount: number;
+interface CurrencyDisplayProps
+    extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof currencyDisplayVariants> {
+    amount: CentavosValue; // Agora recebe valor em centavos
     currency?: string;
-    size?: 'sm' | 'md' | 'lg' | 'xl';
-    variant?: 'positive' | 'negative' | 'neutral';
     showSign?: boolean;
-    className?: string;
+    showSymbol?: boolean;
 }
 
 export function CurrencyDisplay({
     amount,
     currency = 'BRL',
-    size = 'md',
-    variant = 'neutral',
+    size,
+    variant,
     showSign = false,
-    className = ''
+    showSymbol = true,
+    className,
+    ...props
 }: CurrencyDisplayProps) {
-    const sizeClasses = {
-        sm: 'text-sm',
-        md: 'text-base',
-        lg: 'text-lg font-semibold',
-        xl: 'text-2xl font-bold'
-    };
-
-    const variantClasses = {
-        positive: 'text-green-600',
-        negative: 'text-red-600',
-        neutral: 'text-gray-900'
-    };
-
     // Determina a variante automaticamente baseada no valor se não especificada
     let finalVariant = variant;
     if (variant === 'neutral' && showSign) {
         finalVariant = amount >= 0 ? 'positive' : 'negative';
     }
 
-    const formatValue = (value: number) => {
-        if (currency === 'BRL') {
-            return formatCurrency(value);
-        }
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: currency,
-        }).format(value);
-    };
+    // Converte centavos para reais e formata
+    const displayValue = formatCentavosToMoney(amount, {
+        showSymbol,
+        currency,
+        locale: 'pt-BR'
+    });
 
-    const displayValue = showSign && amount > 0 ? `+${formatValue(amount)}` : formatValue(amount);
+    // Adiciona sinal de + para valores positivos se solicitado
+    const finalDisplayValue = showSign && amount > 0 ? `+${displayValue}` : displayValue;
 
     return (
-        <span className={`
-      ${sizeClasses[size]}
-      ${variantClasses[finalVariant]}
-      ${className}
-    `.trim()}>
-            {displayValue}
+        <span
+            className={cn(currencyDisplayVariants({ size, variant: finalVariant }), className)}
+            {...props}
+        >
+            {finalDisplayValue}
         </span>
     );
 }
