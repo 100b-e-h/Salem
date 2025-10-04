@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useAuth } from '@/components/AuthProvider';
 
 interface NewCardDialogProps {
@@ -20,7 +21,7 @@ export function NewCardDialog({ open, onClose, onCardCreated }: NewCardDialogPro
     const { user } = useAuth();
     const [alias, setAlias] = useState('');
     const [brand, setBrand] = useState('');
-    const [totalLimit, setTotalLimit] = useState<number>(0);
+    const [totalLimit, setTotalLimit] = useState<number>(0); // Valor em centavos
     const [closingDay, setClosingDay] = useState<number>(1);
     const [dueDay, setDueDay] = useState<number>(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,12 +96,9 @@ export function NewCardDialog({ open, onClose, onCardCreated }: NewCardDialogPro
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="totalLimit">Limite Total</Label>
-                        <Input
+                        <MoneyInput
                             id="totalLimit"
-                            type="number"
-                            value={totalLimit}
-                            onChange={e => setTotalLimit(Number(e.target.value))}
-                            min={0}
+                            onValueChange={setTotalLimit}
                             required
                         />
                     </div>
