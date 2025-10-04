@@ -1,33 +1,37 @@
-// Componente de Header/Navegação principal
-
 'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from './ThemeToggle';
+import { useAuth } from './AuthProvider';
+import { AuthDialog } from './AuthDialog';
+import { Button } from './ui/Button';
 
 interface NavItem {
     name: string;
     href: string;
-    icon: string;
+    icon?: string;
 }
 
 const navItems: NavItem[] = [
-    { name: 'Dashboard', href: '/', icon: '📊' },
-    { name: 'Contas', href: '/accounts', icon: '🏦' },
-    { name: 'Cartões', href: '/cards', icon: '💳' },
-    { name: 'Faturas', href: '/invoices', icon: '📄' },
-    { name: 'Parceladas', href: '/installments', icon: '#️⃣' },
-    { name: 'Assinaturas', href: '/subscriptions', icon: '♻️' },
-    { name: 'Recorrentes', href: '/recurrences', icon: '⚙️' },
-    { name: 'Rendimentos', href: '/assets', icon: '📈' },
-    { name: 'Calendário', href: '/calendar', icon: '📅' },
-    { name: 'Relatórios', href: '/reports', icon: '📋' },
+    { name: 'Dashboard', href: '/' },
+    { name: 'Contas', href: '/accounts' },
+    { name: 'Cartões', href: '/cards' },
+    { name: 'Faturas', href: '/invoices' },
+    { name: 'Parceladas', href: '/installments' },
+    { name: 'Assinaturas', href: '/subscriptions' },
+    { name: 'Recorrentes', href: '/recurrences' },
+    { name: 'Rendimentos', href: '/assets' },
+    { name: 'Calendário', href: '/calendar' },
+    { name: 'Relatórios', href: '/reports' },
 ];
 
 export function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [authDialogOpen, setAuthDialogOpen] = useState(false);
     const pathname = usePathname();
+    const { user, signOut, loading } = useAuth();
 
     const isActive = (href: string) => {
         if (href === '/') {
@@ -37,42 +41,57 @@ export function Header() {
     };
 
     return (
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-background shadow-sm border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center space-x-2">
                             <div className="text-2xl">🔮</div>
-                            <h1 className="text-xl font-bold text-gray-900">Salem</h1>
+                            <h1 className="text-xl font-bold text-foreground">Salem</h1>
                         </Link>
                     </div>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex space-x-1">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`
-                  px-3 py-2 rounded-md text-sm font-medium transition-colors
-                  ${isActive(item.href)
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                                    }
-                `}
-                            >
-                                <span className="mr-1">{item.icon}</span>
-                                {item.name}
-                            </Link>
-                        ))}
-                    </nav>
+                    <div className="hidden md:flex items-center space-x-4">
+                        {user && (
+                            <nav className="flex space-x-1">
+                                {navItems.map((item) => (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        className={` px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.href)
+                                            ? 'bg-accent text-accent-foreground'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                                            }
+                    `}
+                                    >
+                                        <span className="mr-1">{item.icon}</span>
+                                        {item.name}
+                                    </Link>
+                                ))}
+                            </nav>
+                        )}
+                        <div className="flex items-center space-x-2">
+                            <ThemeToggle />
+                            {user ? (
+                                <Button variant="outline" onClick={signOut} disabled={loading}>
+                                    Sair
+                                </Button>
+                            ) : (
+                                <Button onClick={() => setAuthDialogOpen(true)} disabled={loading}>
+                                    Entrar
+                                </Button>
+                            )}
+                        </div>
+                    </div>
 
-                    {/* Mobile menu button */}
-                    <div className="md:hidden">
+                    {/* Mobile menu button and theme toggle */}
+                    <div className="md:hidden flex items-center space-x-2">
+                        <ThemeToggle />
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                         >
                             <svg
                                 className="h-6 w-6"
@@ -103,19 +122,16 @@ export function Header() {
                 {/* Mobile Navigation */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden">
-                        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+                        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-border">
                             {navItems.map((item) => (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`
-                    block px-3 py-2 rounded-md text-base font-medium transition-colors
-                    ${isActive(item.href)
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                                        }
-                  `}
+                                    className={` block px-3 py-2 rounded-md text-base font-medium transition-colors ${isActive(item.href)
+                                        ? 'bg-accent text-accent-foreground'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                                        }`}
                                 >
                                     <span className="mr-2">{item.icon}</span>
                                     {item.name}
@@ -125,6 +141,7 @@ export function Header() {
                     </div>
                 )}
             </div>
+            <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
         </header>
     );
 }
