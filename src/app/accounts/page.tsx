@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { NewAccountDialog } from './components/NewAccountDialog';
+import { EditAccountDialog } from './components/EditAccountDialog';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/components/AuthProvider';
+import { AccountConversion } from '@/components/AccountConversion';
 import { Account } from '@/types';
 import { formatDate } from '@/utils/financial';
 
@@ -13,6 +16,9 @@ export default function AccountsPage() {
     const { user } = useAuth();
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [loading, setLoading] = useState(true);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
     const loadAccounts = useCallback(async () => {
         if (!user) return;
@@ -37,8 +43,21 @@ export default function AccountsPage() {
         }
     }, [user, loadAccounts]);
 
-    const getTotalBalance = () => {
-        return accounts.reduce((total, account) => total + account.balance, 0);
+    // Separar valores por moeda
+    const getBalanceByurrency = () => {
+        const balances = { BRL: 0, USD: 0, EUR: 0 };
+        accounts.forEach(account => {
+            if (balances.hasOwnProperty(account.currency)) {
+                balances[account.currency as keyof typeof balances] += account.balance;
+            }
+        });
+        return balances;
+    };
+
+    const getTotalBRLBalance = () => {
+        return accounts
+            .filter(account => account.currency === 'BRL')
+            .reduce((total, account) => total + account.balance, 0);
     };
 
     const getAccountTypeIcon = (type: string) => {
@@ -61,6 +80,20 @@ export default function AccountsPage() {
         }
     };
 
+    // Excluir conta
+    const handleDelete = async (account: Account) => {
+        if (!window.confirm(`Tem certeza que deseja excluir a conta "${account.name}"? Essa ação não pode ser desfeita.`)) return;
+        try {
+            const response = await fetch(`/api/accounts/${account.id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) throw new Error('Erro ao excluir conta');
+            await loadAccounts();
+        } catch {
+            alert('Erro ao excluir conta.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -79,51 +112,80 @@ export default function AccountsPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Dialog de nova conta */}
+            <NewAccountDialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                onAccountCreated={loadAccounts}
+            />
+            {/* Dialog de edição de conta */}
+            <EditAccountDialog
+                open={editDialogOpen}
+                onClose={() => setEditDialogOpen(false)}
+                onAccountUpdated={loadAccounts}
+                account={selectedAccount}
+            />
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Contas</h1>
-                    <p className="text-gray-600 mt-2">
+                    <h1 className="text-3xl font-bold text-foreground">Contas</h1>
+                    <p className="text-muted-foreground mt-2">
                         Gerencie suas contas bancárias e carteiras
                     </p>
                 </div>
-                <Button>
+                <Button onClick={() => setDialogOpen(true)}>
                     <span className="mr-2">+</span>
                     Nova Conta
                 </Button>
             </div>
 
             {/* Resumo */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="text-center">
-                    <div className="text-2xl mb-2">💰</div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Saldo Total</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                    <div className="text-xl mb-1">🇧🇷</div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Reais</h3>
                     <CurrencyDisplay
-                        amount={getTotalBalance()}
-                        size="lg"
-                        variant={getTotalBalance() >= 0 ? 'positive' : 'negative'}
+                        amount={getTotalBRLBalance()}
+                        size="md"
+                        variant={getTotalBRLBalance() >= 0 ? 'positive' : 'negative'}
                     />
                 </Card>
 
-                <Card className="text-center">
-                    <div className="text-2xl mb-2">🏦</div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Total de Contas</h3>
-                    <div className="text-2xl font-bold text-gray-900">{accounts.length}</div>
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                    <div className="text-xl mb-1">🇺🇸</div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Dólares</h3>
+                    <div className="text-base font-bold text-foreground">
+                        ${(getBalanceByurrency().USD / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                 </Card>
 
-                <Card className="text-center">
-                    <div className="text-2xl mb-2">📈</div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Contas Positivas</h3>
-                    <div className="text-2xl font-bold text-green-600">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                    <div className="text-xl mb-1">🇪🇺</div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Euros</h3>
+                    <div className="text-base font-bold text-foreground">
+                        €{(getBalanceByurrency().EUR / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+                    </div>
+                </Card>
+
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                    <div className="text-xl mb-1">🏦</div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Total de Contas</h3>
+                    <div className="text-xl font-bold text-foreground">{accounts.length}</div>
+                </Card>
+
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                    <div className="text-xl mb-1">📈</div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Contas Positivas</h3>
+                    <div className="text-xl font-bold text-primary">
                         {accounts.filter(acc => acc.balance > 0).length}
                     </div>
                 </Card>
             </div>
 
             {/* Lista de Contas */}
-            <Card>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">Todas as Contas</h2>
+            <Card className="bg-card border-border">
+                <div className="flex items-center justify-between p-6">
+                    <h2 className="text-lg font-semibold text-foreground">Todas as Contas</h2>
                     <div className="flex items-center space-x-2">
                         <Button variant="outline" size="sm">
                             Filtros
@@ -137,53 +199,61 @@ export default function AccountsPage() {
                 {accounts.length === 0 ? (
                     <div className="text-center py-12">
                         <div className="text-4xl mb-4">🏦</div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <h3 className="text-lg font-medium text-foreground mb-2">
                             Nenhuma conta cadastrada
                         </h3>
-                        <p className="text-gray-500 mb-4">
+                        <p className="text-muted-foreground mb-4">
                             Comece criando sua primeira conta para começar a controlar suas finanças.
                         </p>
-                        <Button>
+                        <Button onClick={() => setDialogOpen(true)}>
                             <span className="mr-2">+</span>
                             Criar Primeira Conta
                         </Button>
                     </div>
                 ) : (
                     <div className="overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-border">
+                            <thead className="bg-muted/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Conta
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Tipo
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Saldo
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                        Valor em BRL
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Atualizado em
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                         Ações
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-card divide-y divide-border">
                                 {accounts.map((account) => (
-                                    <tr key={account.id} className="hover:bg-gray-50">
+                                    <tr key={account.id} className="hover:bg-muted/30">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="text-xl mr-3">
                                                     {getAccountTypeIcon(account.type)}
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm font-medium text-gray-900">
+                                                    <div className="text-sm font-medium text-foreground">
                                                         {account.name}
                                                     </div>
-                                                    <div className="text-sm text-gray-500">
+                                                    <div className="text-sm text-muted-foreground flex items-center gap-1">
                                                         {account.currency}
+                                                        {account.currency !== 'BRL' && (
+                                                            <span className="text-xs bg-primary/10 text-primary px-1 rounded">
+                                                                Convertido
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -203,19 +273,28 @@ export default function AccountsPage() {
                                                 variant={account.balance >= 0 ? 'positive' : 'negative'}
                                             />
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                                            <AccountConversion
+                                                balance={account.balance}
+                                                currency={account.currency}
+                                            />
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                                             {formatDate(account.updatedAt)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                <Button variant="ghost" size="sm">
+                                                <Button variant="ghost" size="sm" onClick={() => {
+                                                    setSelectedAccount(account);
+                                                    setEditDialogOpen(true);
+                                                }}>
                                                     Editar
                                                 </Button>
                                                 <Button variant="ghost" size="sm">
                                                     Extrato
                                                 </Button>
-                                                <Button variant="ghost" size="sm">
-                                                    ⋯
+                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(account)}>
+                                                    Excluir
                                                 </Button>
                                             </div>
                                         </td>
