@@ -1,5 +1,3 @@
-// Configurações e constantes do Salem
-
 export const APP_CONFIG = {
   name: "Salem",
   description: "Sistema de Controle Financeiro Pessoal",
@@ -120,7 +118,6 @@ export const INDEX_TYPES = [
   { value: "outro", label: "Outro" },
 ] as const;
 
-// Validações comuns
 export const VALIDATION_RULES = {
   account: {
     name: { required: true, minLength: 2, maxLength: 100 },
@@ -143,7 +140,6 @@ export const VALIDATION_RULES = {
   },
 };
 
-// Formatos de data comuns
 export const DATE_FORMATS = {
   display: "dd/MM/yyyy",
   displayShort: "dd/MM",
@@ -153,7 +149,6 @@ export const DATE_FORMATS = {
   competence: "yyyy-MM",
 } as const;
 
-// Mensagens padrão
 export const MESSAGES = {
   errors: {
     required: "Este campo é obrigatório",
