@@ -1,5 +1,3 @@
-// Utilitários para cálculos financeiros do Salem
-
 import {
   format,
   addDays,
