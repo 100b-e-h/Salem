@@ -1,5 +1,3 @@
-// Página de calendário financeiro
-
 'use client';
 
 import React, { useState } from 'react';
@@ -24,54 +22,7 @@ export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
-    // Dados simulados de eventos
-    const events: CalendarEvent[] = [
-        {
-            id: '1',
-            date: new Date(2025, 7, 1), // 1º de agosto
-            type: 'recorrente',
-            description: 'Aluguel',
-            amount: 1200.00,
-            vendor: 'Imobiliária Santos',
-            status: 'previsto'
-        },
-        {
-            id: '2',
-            date: new Date(2025, 7, 5), // 5 de agosto
-            type: 'assinatura',
-            description: 'Netflix',
-            amount: 39.90,
-            vendor: 'Netflix',
-            status: 'previsto'
-        },
-        {
-            id: '3',
-            date: new Date(2025, 7, 10), // 10 de agosto
-            type: 'parcela',
-            description: 'Notebook Dell - 3/12',
-            amount: 250.00,
-            vendor: 'Dell',
-            status: 'previsto'
-        },
-        {
-            id: '4',
-            date: new Date(2025, 7, 15), // 15 de agosto
-            type: 'vencimento',
-            description: 'Fatura Nubank',
-            amount: 850.00,
-            vendor: 'Nubank',
-            status: 'previsto'
-        },
-        {
-            id: '5',
-            date: new Date(2025, 7, 20), // 20 de agosto
-            type: 'assinatura',
-            description: 'Spotify Premium',
-            amount: 21.90,
-            vendor: 'Spotify',
-            status: 'lancado'
-        }
-    ];
+    const events: CalendarEvent[] = [];
 
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -142,14 +93,14 @@ export default function CalendarPage() {
                 <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2">
                         <Button
-                            variant={viewMode === 'month' ? 'primary' : 'outline'}
+                            variant={viewMode === 'month' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setViewMode('month')}
                         >
                             Mês
                         </Button>
                         <Button
-                            variant={viewMode === 'week' ? 'primary' : 'outline'}
+                            variant={viewMode === 'week' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setViewMode('week')}
                         >

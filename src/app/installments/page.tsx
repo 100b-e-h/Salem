@@ -1,5 +1,3 @@
-// Página de gerenciamento de compras parceladas
-
 'use client';
 
 import React, { useState } from 'react';
@@ -27,62 +25,16 @@ interface InstallmentPlan {
 }
 
 export default function InstallmentsPage() {
-    const [installments] = useState<InstallmentPlan[]>([
-        {
-            id: '1',
-            description: 'Notebook Dell Inspiron 15',
-            vendor: 'Dell Store',
-            totalAmount: 3000.00,
-            installmentCount: 12,
-            installmentValue: 250.00,
-            purchaseDate: new Date(2025, 5, 15), // 15 de junho
-            firstDueDate: new Date(2025, 6, 7), // 7 de julho
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Eletrônicos',
-            monthlyInterest: 0,
-            currentInstallment: 3,
-            status: 'ativa'
-        },
-        {
-            id: '2',
-            description: 'Geladeira Brastemp Frost Free',
-            vendor: 'Magazine Luiza',
-            totalAmount: 2400.00,
-            installmentCount: 10,
-            installmentValue: 240.00,
-            purchaseDate: new Date(2025, 4, 20), // 20 de maio
-            firstDueDate: new Date(2025, 5, 7), // 7 de junho
-            cardName: 'Santander SX',
-            categoryName: 'Casa',
-            monthlyInterest: 1.5,
-            currentInstallment: 4,
-            status: 'ativa'
-        },
-        {
-            id: '3',
-            description: 'Curso de React Avançado',
-            vendor: 'Udemy',
-            totalAmount: 599.90,
-            installmentCount: 6,
-            installmentValue: 99.98,
-            purchaseDate: new Date(2025, 2, 10), // 10 de março
-            firstDueDate: new Date(2025, 2, 7), // 7 de março
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Educação',
-            monthlyInterest: 0,
-            currentInstallment: 6,
-            status: 'quitada'
-        }
-    ]);
+    const [installments] = useState<InstallmentPlan[]>([]);
 
     const getStatusBadge = (status: InstallmentPlan['status']) => {
         switch (status) {
             case 'ativa':
-                return <Badge variant="info">Ativa</Badge>;
+                return <Badge variant="secondary">Ativa</Badge>;
             case 'quitada':
-                return <Badge variant="success">Quitada</Badge>;
+                return <Badge variant="default">Quitada</Badge>;
             case 'antecipada':
-                return <Badge variant="warning">Antecipada</Badge>;
+                return <Badge variant="secondary">Antecipada</Badge>;
             default:
                 return <Badge variant="default">{status}</Badge>;
         }

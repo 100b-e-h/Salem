@@ -1,5 +1,3 @@
-// Página de transações recorrentes
-
 'use client';
 
 import React, { useState } from 'react';
@@ -28,90 +26,16 @@ interface RecurrentTransaction {
 }
 
 export default function RecurrencesPage() {
-    const [recurrences] = useState<RecurrentTransaction[]>([
-        {
-            id: '1',
-            description: 'Salário',
-            vendor: 'Empresa XYZ',
-            amount: 5500.00,
-            type: 'receita',
-            frequency: 'mensal',
-            dayOfMonth: 5,
-            accountName: 'Conta Corrente Principal',
-            categoryName: 'Salário',
-            status: 'ativa',
-            startDate: new Date(2024, 0, 5),
-            nextDate: new Date(2025, 7, 5), // 5 de agosto
-            indexation: 8.5 // 8.5% ao ano
-        },
-        {
-            id: '2',
-            description: 'Aluguel',
-            vendor: 'Imobiliária Santos',
-            amount: 1200.00,
-            type: 'despesa',
-            frequency: 'mensal',
-            dayOfMonth: 1,
-            accountName: 'Conta Corrente Principal',
-            categoryName: 'Moradia',
-            status: 'ativa',
-            startDate: new Date(2024, 0, 1),
-            nextDate: new Date(2025, 7, 1), // 1º de agosto
-            indexation: 12.0 // 12% ao ano
-        },
-        {
-            id: '3',
-            description: 'Conta de Luz',
-            vendor: 'CEMIG',
-            amount: 180.00,
-            type: 'despesa',
-            frequency: 'mensal',
-            dayOfMonth: 15,
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Moradia',
-            status: 'ativa',
-            startDate: new Date(2024, 2, 15),
-            nextDate: new Date(2025, 7, 15), // 15 de agosto
-        },
-        {
-            id: '4',
-            description: 'Academia',
-            vendor: 'Smart Fit',
-            amount: 89.90,
-            type: 'despesa',
-            frequency: 'mensal',
-            dayOfMonth: 10,
-            cardName: 'Santander SX',
-            categoryName: 'Saúde',
-            status: 'pausada',
-            startDate: new Date(2024, 1, 10),
-            nextDate: new Date(2025, 8, 10), // Pausada até setembro
-        },
-        {
-            id: '5',
-            description: 'Freelance Design',
-            vendor: 'Cliente ABC',
-            amount: 800.00,
-            type: 'receita',
-            frequency: 'mensal',
-            dayOfMonth: 20,
-            accountName: 'Conta Corrente Principal',
-            categoryName: 'Freelance',
-            status: 'ativa',
-            startDate: new Date(2024, 5, 20),
-            nextDate: new Date(2025, 7, 20), // 20 de agosto
-            endDate: new Date(2025, 11, 20) // Termina em dezembro
-        }
-    ]);
+    const [recurrences] = useState<RecurrentTransaction[]>([]);
 
     const getStatusBadge = (status: RecurrentTransaction['status']) => {
         switch (status) {
             case 'ativa':
-                return <Badge variant="success">Ativa</Badge>;
+                return <Badge variant="default">Ativa</Badge>;
             case 'pausada':
-                return <Badge variant="warning">Pausada</Badge>;
+                return <Badge variant="secondary">Pausada</Badge>;
             case 'cancelada':
-                return <Badge variant="danger">Cancelada</Badge>;
+                return <Badge variant="destructive">Cancelada</Badge>;
             default:
                 return <Badge variant="default">{status}</Badge>;
         }
@@ -119,8 +43,8 @@ export default function RecurrencesPage() {
 
     const getTypeBadge = (type: RecurrentTransaction['type']) => {
         return type === 'receita' ?
-            <Badge variant="success">Receita</Badge> :
-            <Badge variant="danger">Despesa</Badge>;
+            <Badge variant="default">Receita</Badge> :
+            <Badge variant="destructive">Despesa</Badge>;
     };
 
     const getFrequencyLabel = (frequency: RecurrentTransaction['frequency']) => {

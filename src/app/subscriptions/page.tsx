@@ -1,5 +1,3 @@
-// Página de gerenciamento de assinaturas
-
 'use client';
 
 import React, { useState } from 'react';
@@ -28,96 +26,16 @@ interface Subscription {
 }
 
 export default function SubscriptionsPage() {
-    const [subscriptions] = useState<Subscription[]>([
-        {
-            id: '1',
-            name: 'Netflix Premium',
-            vendor: 'Netflix',
-            currentValue: 55.90,
-            chargeDay: 5,
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Entretenimento',
-            status: 'ativa',
-            startDate: new Date(2024, 10, 5), // 5 de novembro de 2024
-            nextChargeDate: new Date(2025, 7, 5), // 5 de agosto de 2025
-            priceHistory: [
-                { date: new Date(2024, 10, 5), amount: 45.90 },
-                { date: new Date(2025, 0, 5), amount: 55.90, reason: 'Reajuste anual' }
-            ]
-        },
-        {
-            id: '2',
-            name: 'Spotify Premium',
-            vendor: 'Spotify',
-            currentValue: 21.90,
-            chargeDay: 12,
-            cardName: 'Santander SX',
-            categoryName: 'Entretenimento',
-            status: 'ativa',
-            startDate: new Date(2024, 8, 12), // 12 de setembro de 2024
-            nextChargeDate: new Date(2025, 7, 12), // 12 de agosto de 2025
-            priceHistory: [
-                { date: new Date(2024, 8, 12), amount: 19.90 },
-                { date: new Date(2025, 2, 12), amount: 21.90, reason: 'Reajuste' }
-            ]
-        },
-        {
-            id: '3',
-            name: 'Adobe Creative Cloud',
-            vendor: 'Adobe',
-            currentValue: 85.00,
-            chargeDay: 20,
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Trabalho',
-            status: 'ativa',
-            startDate: new Date(2024, 11, 20), // 20 de dezembro de 2024
-            nextChargeDate: new Date(2025, 7, 20), // 20 de agosto de 2025
-            priceHistory: [
-                { date: new Date(2024, 11, 20), amount: 85.00 }
-            ]
-        },
-        {
-            id: '4',
-            name: 'Amazon Prime',
-            vendor: 'Amazon',
-            currentValue: 14.90,
-            chargeDay: 1,
-            cardName: 'Santander SX',
-            categoryName: 'Compras',
-            status: 'pausada',
-            startDate: new Date(2024, 5, 1), // 1 de junho de 2024
-            nextChargeDate: new Date(2025, 8, 1), // 1 de setembro de 2025 (pausada)
-            priceHistory: [
-                { date: new Date(2024, 5, 1), amount: 9.90 },
-                { date: new Date(2025, 0, 1), amount: 14.90, reason: 'Reajuste anual' }
-            ]
-        },
-        {
-            id: '5',
-            name: 'Gym Premium',
-            vendor: 'Smart Fit',
-            currentValue: 89.90,
-            chargeDay: 15,
-            cardName: 'Nubank Roxinho',
-            categoryName: 'Saúde',
-            status: 'cancelada',
-            startDate: new Date(2024, 0, 15), // 15 de janeiro de 2024
-            nextChargeDate: new Date(2025, 4, 15), // 15 de maio de 2025 (cancelada em maio)
-            priceHistory: [
-                { date: new Date(2024, 0, 15), amount: 79.90 },
-                { date: new Date(2024, 6, 15), amount: 89.90, reason: 'Reajuste semestral' }
-            ]
-        }
-    ]);
+    const [subscriptions] = useState<Subscription[]>([]);
 
     const getStatusBadge = (status: Subscription['status']) => {
         switch (status) {
             case 'ativa':
-                return <Badge variant="success">Ativa</Badge>;
+                return <Badge variant="default">Ativa</Badge>;
             case 'pausada':
-                return <Badge variant="warning">Pausada</Badge>;
+                return <Badge variant="secondary">Pausada</Badge>;
             case 'cancelada':
-                return <Badge variant="danger">Cancelada</Badge>;
+                return <Badge variant="destructive">Cancelada</Badge>;
             default:
                 return <Badge variant="default">{status}</Badge>;
         }

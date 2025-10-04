@@ -1,5 +1,3 @@
-// Página de ativos e rendimentos
-
 'use client';
 
 import React, { useState } from 'react';
@@ -29,87 +27,7 @@ interface Asset {
 }
 
 export default function AssetsPage() {
-    const [assets] = useState<Asset[]>([
-        {
-            id: '1',
-            name: 'Poupança Banco do Brasil',
-            accountName: 'BB Poupança',
-            type: 'poupanca',
-            principal: 10000.00,
-            currentBalance: 10456.32,
-            rateMethod: 'percentual_de_indice',
-            indexName: 'TR + 0,5%',
-            indexPercent: 70, // 70% da SELIC
-            startDate: new Date(2024, 10, 1), // 1º de novembro
-            totalReturn: 456.32,
-            monthlyReturn: 48.50,
-            projectedBalance: 10895.45,
-            status: 'ativo'
-        },
-        {
-            id: '2',
-            name: 'CDB Banco Inter',
-            accountName: 'Inter Investimentos',
-            type: 'cdb',
-            principal: 25000.00,
-            currentBalance: 27150.75,
-            rateMethod: 'percentual_de_indice',
-            indexName: 'CDI',
-            indexPercent: 102, // 102% do CDI
-            startDate: new Date(2024, 5, 15), // 15 de junho
-            totalReturn: 2150.75,
-            monthlyReturn: 245.80,
-            projectedBalance: 29425.30,
-            status: 'ativo'
-        },
-        {
-            id: '3',
-            name: 'Tesouro SELIC 2029',
-            accountName: 'Corretora Clear',
-            type: 'tesouro',
-            principal: 15000.00,
-            currentBalance: 15890.25,
-            rateMethod: 'percentual_de_indice',
-            indexName: 'SELIC',
-            indexPercent: 100, // 100% da SELIC
-            startDate: new Date(2024, 2, 10), // 10 de março
-            totalReturn: 890.25,
-            monthlyReturn: 165.40,
-            projectedBalance: 17245.80,
-            status: 'ativo'
-        },
-        {
-            id: '4',
-            name: 'Conta Remunerada Nubank',
-            accountName: 'NuConta',
-            type: 'saldo_corrente_rendido',
-            principal: 5000.00,
-            currentBalance: 5125.45,
-            rateMethod: 'percentual_de_indice',
-            indexName: 'CDI',
-            indexPercent: 100, // 100% do CDI
-            startDate: new Date(2024, 7, 1), // 1º de agosto
-            totalReturn: 125.45,
-            monthlyReturn: 42.15,
-            projectedBalance: 5420.60,
-            status: 'ativo'
-        },
-        {
-            id: '5',
-            name: 'CDB Santander (Resgatado)',
-            accountName: 'Santander Select',
-            type: 'cdb',
-            principal: 20000.00,
-            currentBalance: 0,
-            rateMethod: 'fixa_anual',
-            annualRate: 12.5,
-            startDate: new Date(2024, 0, 1), // 1º de janeiro
-            totalReturn: 1850.00,
-            monthlyReturn: 0,
-            projectedBalance: 0,
-            status: 'resgatado'
-        }
-    ]);
+    const [assets] = useState<Asset[]>([]);
 
     const getAssetTypeIcon = (type: Asset['type']) => {
         switch (type) {
@@ -136,11 +54,11 @@ export default function AssetsPage() {
     const getStatusBadge = (status: Asset['status']) => {
         switch (status) {
             case 'ativo':
-                return <Badge variant="success">Ativo</Badge>;
+                return <Badge variant="default">Ativo</Badge>;
             case 'resgatado':
                 return <Badge variant="default">Resgatado</Badge>;
             case 'pausado':
-                return <Badge variant="warning">Pausado</Badge>;
+                return <Badge variant="secondary">Pausado</Badge>;
             default:
                 return <Badge variant="default">{status}</Badge>;
         }

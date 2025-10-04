@@ -1,5 +1,3 @@
-// Página de relatórios financeiros
-
 'use client';
 
 import React, { useState } from 'react';
@@ -12,38 +10,35 @@ import { formatDate } from '@/utils/financial';
 export default function ReportsPage() {
     const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
-    // Dados simulados para demonstração
     const reportData = {
-        income: 5500.00,
-        expenses: 3250.75,
-        savings: 2249.25,
-        investments: 850.00,
-        creditUsed: 1500.00,
-        creditLimit: 8000.00
+        income: 0,
+        expenses: 0,
+        savings: 0,
+        investments: 0,
+        creditUsed: 0,
+        creditLimit: 0
     };
 
-    const categoryExpenses = [
-        { name: 'Alimentação', amount: 680.50, percentage: 20.9, icon: '🍽️' },
-        { name: 'Transporte', amount: 450.00, percentage: 13.8, icon: '🚗' },
-        { name: 'Moradia', amount: 1200.00, percentage: 36.9, icon: '🏠' },
-        { name: 'Lazer', amount: 320.25, percentage: 9.8, icon: '🎬' },
-        { name: 'Saúde', amount: 280.00, percentage: 8.6, icon: '🏥' },
-        { name: 'Outros', amount: 320.00, percentage: 9.8, icon: '📦' }
-    ];
+    const categoryExpenses: Array<{
+        name: string;
+        amount: number;
+        percentage: number;
+        icon: string;
+    }> = [];
 
-    const monthlyTrend = [
-        { month: 'Mai', income: 5200, expenses: 3100, savings: 2100 },
-        { month: 'Jun', income: 5400, expenses: 3050, savings: 2350 },
-        { month: 'Jul', income: 5300, expenses: 3200, savings: 2100 },
-        { month: 'Ago', income: 5500, expenses: 3250, savings: 2250 }
-    ];
+    const monthlyTrend: Array<{
+        month: string;
+        income: number;
+        expenses: number;
+        savings: number;
+    }> = [];
 
-    const upcomingCommitments = [
-        { date: new Date(2025, 7, 5), description: 'Netflix', amount: 55.90, type: 'assinatura' },
-        { date: new Date(2025, 7, 10), description: 'Parcela Notebook', amount: 250.00, type: 'parcela' },
-        { date: new Date(2025, 7, 15), description: 'Fatura Nubank', amount: 850.00, type: 'fatura' },
-        { date: new Date(2025, 7, 20), description: 'Spotify', amount: 21.90, type: 'assinatura' }
-    ];
+    const upcomingCommitments: Array<{
+        date: Date;
+        description: string;
+        amount: number;
+        type: string;
+    }> = [];
 
     const getPeriodOptions = () => [
         { value: 'current-month', label: 'Mês Atual' },
@@ -191,7 +186,7 @@ export default function ReportsPage() {
                             <div key={index} className="border border-gray-200 rounded-lg p-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <h3 className="font-medium text-gray-900">{month.month}/2025</h3>
-                                    <Badge variant={month.savings > 2000 ? 'success' : 'warning'}>
+                                    <Badge variant={month.savings > 2000 ? 'default' : 'secondary'}>
                                         {month.savings > 2000 ? 'Positivo' : 'Atenção'}
                                     </Badge>
                                 </div>

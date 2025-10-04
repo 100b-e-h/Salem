@@ -1,27 +1,55 @@
-// Página de gerenciamento de faturas
-
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Badge } from '@/components/ui/Badge';
-import { mockDb } from '@/lib/database';
+import { useAuth } from '@/components/AuthProvider';
 import { Card as CardType, Invoice } from '@/types';
 import { formatDate } from '@/utils/financial';
 import { addMonths, format } from 'date-fns';
 
 export default function InvoicesPage() {
+    const { user } = useAuth();
     const [cards, setCards] = useState<CardType[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [selectedCard, setSelectedCard] = useState<string>('');
     const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [loading, setLoading] = useState(true);
 
+    const loadData = useCallback(async () => {
+        if (!user) return;
+
+        try {
+            const [cardsResponse, invoicesResponse] = await Promise.all([
+                fetch('/api/cards'),
+                fetch('/api/invoices')
+            ]);
+
+            if (!cardsResponse.ok || !invoicesResponse.ok) {
+                throw new Error('Failed to fetch data');
+            }
+
+            const [cardsData, invoicesData] = await Promise.all([
+                cardsResponse.json(),
+                invoicesResponse.json()
+            ]);
+
+            setCards(cardsData);
+            setInvoices(invoicesData);
+        } catch (error) {
+            console.error('Erro ao carregar dados das faturas:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
     useEffect(() => {
-        loadData();
-    }, []);
+        if (user) {
+            loadData();
+        }
+    }, [user, loadData]);
 
     useEffect(() => {
         if (cards.length > 0 && !selectedCard) {
@@ -36,31 +64,16 @@ export default function InvoicesPage() {
         }
     }, [selectedMonth]);
 
-    const loadData = async () => {
-        try {
-            const [cardsData, invoicesData] = await Promise.all([
-                mockDb.getAllCards(),
-                mockDb.getAllCards().then(cards =>
-                    Promise.all(cards.map(card => mockDb.getInvoicesByCard(card.id)))
-                ).then(results => results.flat())
-            ]);
-
-            setCards(cardsData);
-            setInvoices(invoicesData);
-        } catch (error) {
-            console.error('Erro ao carregar dados das faturas:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const getSelectedCard = () => {
         return cards.find(card => card.id === selectedCard);
     };
 
     const getInvoiceForMonth = (cardId: string, yearMonth: string) => {
+        const [year, month] = yearMonth.split('-').map(Number);
         return invoices.find(invoice =>
-            invoice.cardId === cardId && invoice.yearMonth === yearMonth
+            invoice.cardId === cardId &&
+            invoice.year === year &&
+            invoice.month === month
         );
     };
 
@@ -97,12 +110,12 @@ export default function InvoicesPage() {
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch (status) {
-            case 'prevista':
-                return <Badge variant="info">Prevista</Badge>;
-            case 'fechada':
-                return <Badge variant="warning">Fechada</Badge>;
-            case 'paga':
-                return <Badge variant="success">Paga</Badge>;
+            case 'open':
+                return <Badge variant="secondary">Aberta</Badge>;
+            case 'paid':
+                return <Badge variant="default">Paga</Badge>;
+            case 'overdue':
+                return <Badge variant="destructive">Vencida</Badge>;
             default:
                 return <Badge variant="default">{status}</Badge>;
         }
@@ -229,7 +242,7 @@ export default function InvoicesPage() {
                                             Total Previsto
                                         </h3>
                                         <CurrencyDisplay
-                                            amount={currentInvoice.totalForecast}
+                                            amount={currentInvoice.totalAmount}
                                             size="lg"
                                             variant="negative"
                                         />
@@ -241,7 +254,7 @@ export default function InvoicesPage() {
                                             Total Fechado
                                         </h3>
                                         <CurrencyDisplay
-                                            amount={currentInvoice.totalClosed}
+                                            amount={currentInvoice.totalAmount}
                                             size="lg"
                                             variant="neutral"
                                         />
@@ -253,7 +266,7 @@ export default function InvoicesPage() {
                                             Total Pago
                                         </h3>
                                         <CurrencyDisplay
-                                            amount={currentInvoice.totalPaid}
+                                            amount={currentInvoice.paidAmount}
                                             size="lg"
                                             variant="positive"
                                         />
@@ -308,7 +321,7 @@ export default function InvoicesPage() {
                                         <span className="text-gray-500">Limite Disponível:</span>
                                         <div className="font-medium">
                                             <CurrencyDisplay
-                                                amount={selectedCardData.totalLimit - (currentInvoice?.totalForecast || 0)}
+                                                amount={selectedCardData.totalLimit - (currentInvoice?.totalAmount || 0)}
                                                 variant="positive"
                                             />
                                         </div>

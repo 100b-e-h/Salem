@@ -1,34 +1,41 @@
-// Página de gerenciamento de contas
-
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Badge } from '@/components/ui/Badge';
-import { mockDb } from '@/lib/database';
+import { useAuth } from '@/components/AuthProvider';
 import { Account } from '@/types';
 import { formatDate } from '@/utils/financial';
 
 export default function AccountsPage() {
+    const { user } = useAuth();
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadAccounts();
-    }, []);
+    const loadAccounts = useCallback(async () => {
+        if (!user) return;
 
-    const loadAccounts = async () => {
         try {
-            const data = await mockDb.getAllAccounts();
+            const response = await fetch('/api/accounts');
+            if (!response.ok) {
+                throw new Error('Failed to fetch accounts');
+            }
+            const data = await response.json();
             setAccounts(data);
         } catch (error) {
             console.error('Erro ao carregar contas:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            loadAccounts();
+        }
+    }, [user, loadAccounts]);
 
     const getTotalBalance = () => {
         return accounts.reduce((total, account) => total + account.balance, 0);
@@ -183,10 +190,9 @@ export default function AccountsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <Badge
-                                                variant={account.type === 'corrente' ? 'info' :
-                                                    account.type === 'poupanca' ? 'success' :
-                                                        account.type === 'corretora' ? 'warning' : 'default'}
-                                                size="sm"
+                                                variant={account.type === 'corrente' ? 'secondary' :
+                                                    account.type === 'poupanca' ? 'default' :
+                                                        account.type === 'corretora' ? 'secondary' : 'outline'}
                                             >
                                                 {getAccountTypeLabel(account.type)}
                                             </Badge>

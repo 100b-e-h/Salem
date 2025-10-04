@@ -1,5 +1,3 @@
-// Dashboard principal do Salem
-
 'use client';
 
 import React from 'react';
@@ -7,34 +5,60 @@ import { Card } from '@/components/ui/Card';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function DashboardPage() {
-  // Dados simulados para o dashboard
+  const { user } = useAuth();
+
+  // If no user is authenticated, show welcome screen
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="max-w-md w-full mx-auto text-center space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-foreground">Salem</h1>
+            <p className="text-muted-foreground">
+              Sistema de controle financeiro pessoal
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Faça login para acessar suas finanças
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O sistema de autenticação será ativado automaticamente quando necessário.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const dashboardData = {
-    totalBalance: 45230.75,
-    monthlyIncome: 8500.00,
-    monthlyExpenses: -6750.80,
-    savings: 1749.20,
-    creditCardDebt: -2340.50,
-    investments: 25000.00,
-    investmentGrowth: 450.30,
+    totalBalance: 0,
+    monthlyIncome: 0,
+    monthlyExpenses: 0,
+    savings: 0,
+    creditCardDebt: 0,
+    investments: 0,
+    investmentGrowth: 0,
   };
 
-  const upcomingBills = [
-    { id: '1', name: 'Aluguel', amount: 1800.00, date: '2024-12-05', type: 'recorrente' },
-    { id: '2', name: 'Netflix', amount: 45.90, date: '2024-12-07', type: 'assinatura' },
-    { id: '3', name: 'Celular Samsung (6/12)', amount: 245.50, date: '2024-12-10', type: 'parcelada' },
-    { id: '4', name: 'Energia Elétrica', amount: 320.75, date: '2024-12-15', type: 'recorrente' },
-    { id: '5', name: 'Spotify', amount: 21.90, date: '2024-12-18', type: 'assinatura' },
-  ];
+  const upcomingBills: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    date: string;
+    type: string;
+  }> = [];
 
-  const recentTransactions = [
-    { id: '1', description: 'Supermercado Extra', amount: -256.80, date: '2024-12-01', category: 'Alimentação' },
-    { id: '2', description: 'Salário', amount: 8500.00, date: '2024-12-01', category: 'Renda' },
-    { id: '3', description: 'Uber', amount: -28.50, date: '2024-11-30', category: 'Transporte' },
-    { id: '4', description: 'Farmácia', amount: -85.60, date: '2024-11-29', category: 'Saúde' },
-    { id: '5', description: 'Dividendos ITUB4', amount: 125.30, date: '2024-11-28', category: 'Investimentos' },
-  ];
+  const recentTransactions: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    category: string;
+  }> = [];
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -50,11 +74,11 @@ export default function DashboardPage() {
       case 'recorrente':
         return <Badge variant="default">Recorrente</Badge>;
       case 'assinatura':
-        return <Badge variant="warning">Assinatura</Badge>;
+        return <Badge>Assinatura</Badge>;
       case 'parcelada':
-        return <Badge variant="info">Parcelada</Badge>;
+        return <Badge>Parcelada</Badge>;
       default:
-        return <Badge variant="default">{type}</Badge>;
+        return <Badge>{type}</Badge>;
     }
   };
 
@@ -86,9 +110,9 @@ export default function DashboardPage() {
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="text-center">
-          <div className="text-2xl mb-2">💰</div>
+        <Card className="text-center h-50 md:grid-cols-3">
           <h3 className="text-sm font-medium text-gray-500 mb-1">Saldo Total</h3>
+          <div className="text-2xl mb-2">💰</div>
           <CurrencyDisplay amount={dashboardData.totalBalance} size="lg" variant="positive" />
         </Card>
 
