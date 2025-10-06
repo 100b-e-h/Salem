@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/components/AuthProvider';
 import { Card as CardType, Invoice } from '@/types';
 import { formatDate } from '@/utils/financial';
-import { addMonths, format } from 'date-fns';
+import { format } from 'date-fns';
+import { NewTransactionDialog } from './components/NewTransactionDialog';
+import { EditTransactionDialog } from './components/EditTransactionDialog';
+import { TransactionsTable } from './components/TransactionsTable';
+import type { Transaction } from '@/types';
 
 export default function InvoicesPage() {
     const { user } = useAuth();
@@ -17,6 +21,38 @@ export default function InvoicesPage() {
     const [selectedCard, setSelectedCard] = useState<string>('');
     const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [loading, setLoading] = useState(true);
+    const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+    const fetchTransactions = useCallback(async () => {
+        if (!user || !selectedCard || !selectedMonth) return;
+        const [year, month] = selectedMonth.split('-');
+        const res = await fetch(`/api/cards/${selectedCard}/transactions`);
+        if (res.ok) {
+            const all: Transaction[] = await res.json();
+            setTransactions(
+                all.filter((t) => {
+                    const ts = typeof t.date === 'string' ? Date.parse(t.date) : (t.date ? new Date(t.date).getTime() : NaN);
+                    const d = new Date(ts);
+                    return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(month);
+                })
+            );
+        } else {
+            setTransactions([]);
+        }
+    }, [user, selectedCard, selectedMonth]);
+
+    useEffect(() => {
+        fetchTransactions();
+    }, [fetchTransactions, transactionDialogOpen]);
+
+    const handleEditTransaction = (tx: Transaction) => {
+        setEditingTransaction(tx);
+        setEditDialogOpen(true);
+    };
 
     const loadData = useCallback(async () => {
         if (!user) return;
@@ -77,36 +113,31 @@ export default function InvoicesPage() {
         );
     };
 
-    const getMonthOptions = () => {
-        const options = [];
+    const getMonthOptions = useMemo(() => {
+        const options = new Map<string, { value: string; label: string; isCurrent: boolean }>();
         const currentDate = new Date();
+        const currentYearMonth = format(currentDate, 'yyyy-MM');
 
-        // 3 meses anteriores
-        for (let i = 3; i >= 1; i--) {
-            const date = addMonths(currentDate, -i);
-            options.push({
-                value: format(date, 'yyyy-MM'),
-                label: format(date, 'MMM/yyyy')
-            });
-        }
-
-        // Mês atual
-        options.push({
-            value: format(currentDate, 'yyyy-MM'),
-            label: `${format(currentDate, 'MMM/yyyy')} (Atual)`
+        options.set(currentYearMonth, {
+            value: currentYearMonth,
+            label: `${format(currentDate, 'MMM/yyyy')} (Atual)`,
+            isCurrent: true
         });
 
-        // 3 meses futuros
-        for (let i = 1; i <= 3; i++) {
-            const date = addMonths(currentDate, i);
-            options.push({
-                value: format(date, 'yyyy-MM'),
-                label: format(date, 'MMM/yyyy')
-            });
-        }
+        invoices.forEach(invoice => {
+            const yearMonth = `${invoice.year}-${String(invoice.month).padStart(2, '0')}`;
+            if (!options.has(yearMonth)) {
+                const date = new Date(invoice.year, invoice.month - 1);
+                options.set(yearMonth, {
+                    value: yearMonth,
+                    label: format(date, 'MMM/yyyy'),
+                    isCurrent: false
+                });
+            }
+        });
 
-        return options;
-    };
+        return Array.from(options.values()).sort((a, b) => b.value.localeCompare(a.value));
+    }, [invoices]);
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch (status) {
@@ -145,31 +176,55 @@ export default function InvoicesPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
+            {selectedCardData && (
+                <>
+                    <NewTransactionDialog
+                        open={transactionDialogOpen}
+                        onClose={() => setTransactionDialogOpen(false)}
+                        onTransactionCreated={loadData}
+                        card={selectedCardData}
+                        selectedMonth={selectedMonth}
+                    />
+                    <EditTransactionDialog
+                        open={editDialogOpen}
+                        onOpenChange={(open) => setEditDialogOpen(open)}
+                        transaction={editingTransaction}
+                        onSaved={() => {
+                            fetchTransactions();
+                            loadData();
+                        }}
+                    />
+                </>
+            )}
+
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Faturas</h1>
-                    <p className="text-gray-600 mt-2">
+                    <h1 className="text-3xl font-bold text-foreground">💳 Faturas</h1>
+                    <p className="text-muted-foreground mt-2">
                         Visualize e gerencie as faturas dos seus cartões
                     </p>
                 </div>
-                <Button>
-                    <span className="mr-2">📄</span>
-                    Gerar Relatório
+                <Button
+                    onClick={() => setTransactionDialogOpen(true)}
+                    disabled={!selectedCardData}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                >
+                    <span className="mr-2">+</span>
+                    Novo Lançamento
                 </Button>
             </div>
 
             {cards.length === 0 ? (
-                <Card>
+                <Card className="bg-card border-border shadow-md">
                     <div className="text-center py-12">
                         <div className="text-4xl mb-4">💳</div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <h3 className="text-lg font-medium text-foreground mb-2">
                             Nenhum cartão cadastrado
                         </h3>
-                        <p className="text-gray-500 mb-4">
+                        <p className="text-muted-foreground mb-4">
                             Você precisa cadastrar pelo menos um cartão para visualizar faturas.
                         </p>
-                        <Button>
+                        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                             <span className="mr-2">+</span>
                             Cadastrar Cartão
                         </Button>
@@ -177,153 +232,158 @@ export default function InvoicesPage() {
                 </Card>
             ) : (
                 <div className="space-y-6">
-                    {/* Seletores */}
-                    <Card>
-                        <div className="flex flex-wrap items-center gap-4">
-                            <div className="flex-1 min-w-64">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Cartão
-                                </label>
-                                <select
-                                    value={selectedCard}
-                                    onChange={(e) => setSelectedCard(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    {cards.map((card) => (
-                                        <option key={card.id} value={card.id}>
-                                            {card.alias} - {card.brand}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                    <Card className="bg-card border-border shadow-md">
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-foreground">
+                                        💳 Cartão
+                                    </label>
+                                    <select
+                                        value={selectedCard}
+                                        onChange={(e) => setSelectedCard(e.target.value)}
+                                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                    >
+                                        {cards.map((card) => (
+                                            <option key={card.id} value={card.id}>
+                                                {card.alias} - {card.brand}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div className="flex-1 min-w-48">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Competência
-                                </label>
-                                <select
-                                    value={selectedMonth}
-                                    onChange={(e) => setSelectedMonth(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    {getMonthOptions().map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-foreground">
+                                        📅 Competência
+                                    </label>
+                                    <select
+                                        value={selectedMonth}
+                                        onChange={(e) => setSelectedMonth(e.target.value)}
+                                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                                    >
+                                        {getMonthOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </Card>
 
-                    {/* Detalhes da Fatura */}
                     {selectedCardData && (
-                        <Card>
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center space-x-3">
-                                    <div className="text-2xl">💳</div>
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-gray-900">
-                                            {selectedCardData.alias}
-                                        </h2>
-                                        <p className="text-gray-500">
-                                            {selectedCardData.brand} • Fatura {selectedMonth}
-                                        </p>
-                                    </div>
-                                </div>
-                                {currentInvoice && getStatusBadge(currentInvoice.status)}
-                            </div>
-
-                            {currentInvoice ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                                    <div className="text-center">
-                                        <div className="text-2xl mb-2">📊</div>
-                                        <h3 className="text-sm font-medium text-gray-500 mb-1">
-                                            Total Previsto
-                                        </h3>
-                                        <CurrencyDisplay
-                                            amount={currentInvoice.totalAmount}
-                                            size="lg"
-                                            variant="negative"
-                                        />
-                                    </div>
-
-                                    <div className="text-center">
-                                        <div className="text-2xl mb-2">🔒</div>
-                                        <h3 className="text-sm font-medium text-gray-500 mb-1">
-                                            Total Fechado
-                                        </h3>
-                                        <CurrencyDisplay
-                                            amount={currentInvoice.totalAmount}
-                                            size="lg"
-                                            variant="neutral"
-                                        />
-                                    </div>
-
-                                    <div className="text-center">
-                                        <div className="text-2xl mb-2">✅</div>
-                                        <h3 className="text-sm font-medium text-gray-500 mb-1">
-                                            Total Pago
-                                        </h3>
-                                        <CurrencyDisplay
-                                            amount={currentInvoice.paidAmount}
-                                            size="lg"
-                                            variant="positive"
-                                        />
-                                    </div>
-
-                                    <div className="text-center">
-                                        <div className="text-2xl mb-2">📅</div>
-                                        <h3 className="text-sm font-medium text-gray-500 mb-1">
-                                            Vencimento
-                                        </h3>
-                                        <div className="text-lg font-semibold text-gray-900">
-                                            {formatDate(calculateDueDate(selectedCardData, selectedMonth))}
+                        <Card className="bg-card border-border shadow-md">
+                            <div className="p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="text-2xl">💳</div>
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-foreground">
+                                                {selectedCardData.alias}
+                                            </h2>
+                                            <p className="text-muted-foreground">
+                                                {selectedCardData.brand} • Fatura {selectedMonth}
+                                            </p>
                                         </div>
                                     </div>
+                                    {currentInvoice && getStatusBadge(currentInvoice.status)}
                                 </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <div className="text-4xl mb-4">📄</div>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                        Fatura não encontrada
-                                    </h3>
-                                    <p className="text-gray-500 mb-4">
-                                        Não há dados para esta competência ainda.
-                                    </p>
-                                    <Button variant="outline">
-                                        Criar Fatura
-                                    </Button>
-                                </div>
-                            )}
 
-                            {/* Informações do Cartão */}
-                            <div className="border-t border-gray-200 pt-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                    Informações do Cartão
-                                </h3>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                        <span className="text-gray-500">Limite Total:</span>
-                                        <div className="font-medium">
-                                            <CurrencyDisplay amount={selectedCardData.totalLimit} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Dia de Fechamento:</span>
-                                        <div className="font-medium">{selectedCardData.closingDay}</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Dia de Vencimento:</span>
-                                        <div className="font-medium">{selectedCardData.dueDay}</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Limite Disponível:</span>
-                                        <div className="font-medium">
+                                {currentInvoice ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                                            <div className="text-2xl mb-2">📊</div>
+                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
+                                                Total Previsto
+                                            </h3>
                                             <CurrencyDisplay
-                                                amount={selectedCardData.totalLimit - (currentInvoice?.totalAmount || 0)}
+                                                amount={currentInvoice.totalAmount}
+                                                size="lg"
+                                                variant="negative"
+                                            />
+                                        </div>
+
+                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                                            <div className="text-2xl mb-2">🔒</div>
+                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
+                                                Total Fechado
+                                            </h3>
+                                            <CurrencyDisplay
+                                                amount={currentInvoice.totalAmount}
+                                                size="lg"
+                                                variant="neutral"
+                                            />
+                                        </div>
+
+                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                                            <div className="text-2xl mb-2">✅</div>
+                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
+                                                Total Pago
+                                            </h3>
+                                            <CurrencyDisplay
+                                                amount={currentInvoice.paidAmount}
+                                                size="lg"
                                                 variant="positive"
                                             />
+                                        </div>
+
+                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                                            <div className="text-2xl mb-2">📅</div>
+                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
+                                                Vencimento
+                                            </h3>
+                                            <div className="text-base font-semibold text-foreground">
+                                                {formatDate(calculateDueDate(selectedCardData, selectedMonth))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <div className="text-4xl mb-4">📄</div>
+                                        <h3 className="text-lg font-medium text-foreground mb-2">
+                                            Fatura não encontrada
+                                        </h3>
+                                        <p className="text-muted-foreground mb-4">
+                                            Não há dados para esta competência ainda.
+                                        </p>
+                                        <Button
+                                            onClick={() => setTransactionDialogOpen(true)}
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                        >
+                                            <span className="mr-2">+</span>
+                                            Criar Lançamento
+                                        </Button>
+                                    </div>
+                                )}
+
+                                <div className="border-t border-border pt-6 mt-6">
+                                    <h3 className="text-lg font-medium text-foreground mb-4">
+                                        ℹ️ Informações do Cartão
+                                    </h3>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Limite Total:</span>
+                                            <div className="font-medium">
+                                                <CurrencyDisplay amount={selectedCardData.totalLimit / 100} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Dia de Fechamento:</span>
+                                            <div className="font-medium text-foreground">{selectedCardData.closingDay}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Dia de Vencimento:</span>
+                                            <div className="font-medium text-foreground">{selectedCardData.dueDay}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Limite Disponível:</span>
+                                            <div className="font-medium">
+                                                <CurrencyDisplay
+                                                    amount={(selectedCardData.totalLimit - (currentInvoice?.totalAmount || 0)) / 100}
+                                                    variant="positive"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -331,29 +391,35 @@ export default function InvoicesPage() {
                         </Card>
                     )}
 
-                    {/* Lançamentos da Fatura */}
-                    <Card>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                Lançamentos da Fatura
-                            </h3>
-                            <div className="flex space-x-2">
-                                <Button variant="outline" size="sm">
-                                    Filtrar
-                                </Button>
-                                <Button size="sm">
-                                    <span className="mr-2">+</span>
-                                    Novo Lançamento
-                                </Button>
+                    <Card className="bg-card border-border shadow-md">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-semibold text-foreground">
+                                    📋 Lançamentos da Fatura
+                                </h3>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-border text-foreground hover:bg-muted"
+                                    >
+                                        🔍 Filtrar
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => setTransactionDialogOpen(true)}
+                                        className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                    >
+                                        <span className="mr-2">+</span>
+                                        Novo Lançamento
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="text-center py-12 text-gray-500">
-                            <div className="text-4xl mb-4">📝</div>
-                            <p>Nenhum lançamento encontrado para esta fatura.</p>
-                            <p className="text-sm mt-2">
-                                Os lançamentos aparecerão aqui conforme forem sendo registrados.
-                            </p>
+                            <TransactionsTable
+                                transactions={transactions}
+                                onEdit={handleEditTransaction}
+                            />
                         </div>
                     </Card>
                 </div>
