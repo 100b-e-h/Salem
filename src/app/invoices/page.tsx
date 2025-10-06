@@ -365,7 +365,7 @@ export default function InvoicesPage() {
                                         <div>
                                             <span className="text-muted-foreground">Limite Total:</span>
                                             <div className="font-medium">
-                                                <CurrencyDisplay amount={selectedCardData.totalLimit / 100} />
+                                                <CurrencyDisplay amount={Math.round(selectedCardData.totalLimit / 100)} />
                                             </div>
                                         </div>
                                         <div>
@@ -379,10 +379,19 @@ export default function InvoicesPage() {
                                         <div>
                                             <span className="text-muted-foreground">Limite Disponível:</span>
                                             <div className="font-medium">
-                                                <CurrencyDisplay
-                                                    amount={(selectedCardData.totalLimit - (currentInvoice?.totalAmount || 0)) / 100}
-                                                    variant="positive"
-                                                />
+                                                {(() => {
+                                                    const normalizedLimit = Math.round(selectedCardData.totalLimit / 100);
+                                                    const usedFromTransactions = transactions && transactions.length > 0
+                                                        ? transactions.reduce((s, tx) => s + (tx.amount || 0), 0)
+                                                        : (currentInvoice?.totalAmount || 0);
+                                                    const available = normalizedLimit - usedFromTransactions;
+                                                    return (
+                                                        <CurrencyDisplay
+                                                            amount={available}
+                                                            variant="positive"
+                                                        />
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
