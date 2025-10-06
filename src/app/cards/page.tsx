@@ -177,14 +177,14 @@ export default function CardsPage() {
                     <CardContent className="p-0 flex flex-col items-center">
                         <div className="text-xl mb-1">💰</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Limite Total</h3>
-                        <CurrencyDisplay amount={getTotalLimit()} size="md" variant="neutral" />
+                        <CurrencyDisplay amount={getTotalLimit() / 100} size="md" variant="neutral" />
                     </CardContent>
                 </Card>
                 <Card className="bg-card border-border text-center px-3 py-2 min-h-0 h-auto flex flex-col justify-center">
                     <CardContent className="p-0 flex flex-col items-center">
                         <div className="text-xl mb-1">📊</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Usado</h3>
-                        <CurrencyDisplay amount={getTotalUsed()} size="md" variant="negative" />
+                        <CurrencyDisplay amount={getTotalUsed() / 100} size="md" variant="negative" />
                     </CardContent>
                 </Card>
                 <Card className="bg-card border-border text-center px-3 py-2 min-h-0 h-auto flex flex-col justify-center">
@@ -192,7 +192,7 @@ export default function CardsPage() {
                         <div className="text-xl mb-1">✅</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Disponível</h3>
                         <CurrencyDisplay
-                            amount={getTotalLimit() - getTotalUsed()}
+                            amount={(getTotalLimit() - getTotalUsed()) / 100}
                             size="md"
                             variant="positive"
                         />
@@ -273,7 +273,7 @@ export default function CardsPage() {
                                     <div className="mb-3">
                                         <div className="flex justify-between text-xs mb-1">
                                             <span className="text-muted-foreground">Limite:</span>
-                                            <CurrencyDisplay amount={card.totalLimit} size="sm" />
+                                            <CurrencyDisplay amount={card.totalLimit / 100} size="sm" />
                                         </div>
                                         <div className="flex justify-between text-xs mb-1">
                                             <span className="text-muted-foreground">Usado:</span>
@@ -281,7 +281,7 @@ export default function CardsPage() {
                                         </div>
                                         <div className="flex justify-between text-xs mb-2">
                                             <span className="text-muted-foreground">Disponível:</span>
-                                            <CurrencyDisplay amount={usage.available} size="sm" variant="positive" />
+                                            <CurrencyDisplay amount={usage.available / 100} size="sm" variant="positive" />
                                         </div>
                                         {/* Barra de progresso */}
                                         <div className="bg-secondary rounded-full h-2">
