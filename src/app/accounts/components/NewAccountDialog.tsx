@@ -66,38 +66,40 @@ export function NewAccountDialog({ open, onClose, onAccountCreated }: NewAccount
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-card border-border shadow-lg">
                 <DialogHeader>
-                    <DialogTitle>Nova Conta</DialogTitle>
+                    <DialogTitle className="text-xl font-semibold text-foreground">💰 Nova Conta</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Nome da Conta</Label>
+                        <Label htmlFor="name" className="text-foreground font-medium">Nome da Conta</Label>
                         <Input
                             id="name"
                             type="text"
+                            placeholder="Ex: Banco Inter, Nubank..."
                             value={name}
                             onChange={e => setName(e.target.value)}
+                            className="bg-background border-border text-foreground shadow-sm"
                             required
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="type">Tipo</Label>
+                        <Label htmlFor="type" className="text-foreground font-medium">Tipo</Label>
                         <select
                             id="type"
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border border-border rounded-lg px-4 py-2.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                             value={type}
                             onChange={e => setType(e.target.value)}
                             required
                         >
-                            <option value="corrente">Conta Corrente</option>
-                            <option value="poupanca">Poupança</option>
-                            <option value="carteira">Carteira</option>
-                            <option value="corretora">Corretora</option>
+                            <option value="corrente">🏦 Conta Corrente</option>
+                            <option value="poupanca">🐷 Poupança</option>
+                            <option value="carteira">👛 Carteira</option>
+                            <option value="corretora">📊 Corretora</option>
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="balance">Saldo Inicial</Label>
+                        <Label htmlFor="balance" className="text-foreground font-medium">Saldo Inicial</Label>
                         <div className="flex gap-2 items-center">
                             <MoneyInput
                                 id="balance"
@@ -111,10 +113,10 @@ export function NewAccountDialog({ open, onClose, onAccountCreated }: NewAccount
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="currency">Moeda</Label>
+                        <Label htmlFor="currency" className="text-foreground font-medium">Moeda</Label>
                         <select
                             id="currency"
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border border-border rounded-lg px-4 py-2.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                             value={currency}
                             onChange={e => setCurrency(e.target.value)}
                             required
@@ -124,12 +126,22 @@ export function NewAccountDialog({ open, onClose, onAccountCreated }: NewAccount
                             <option value="EUR">🇪🇺 Euro (EUR)</option>
                         </select>
                     </div>
-                    <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                    <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="border-border text-foreground hover:bg-muted"
+                        >
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Salvando...' : 'Salvar'}
+                        <Button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            {isSubmitting ? 'Salvando...' : '💾 Salvar Conta'}
                         </Button>
                     </div>
                 </form>
