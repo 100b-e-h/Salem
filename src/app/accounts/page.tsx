@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { NewAccountDialog } from './components/NewAccountDialog';
 import { EditAccountDialog } from './components/EditAccountDialog';
+import { TransactionDialog } from './components/TransactionDialog';
+import { TransactionHistoryDialog } from './components/TransactionHistoryDialog';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
@@ -18,6 +20,8 @@ export default function AccountsPage() {
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+    const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
     const loadAccounts = useCallback(async () => {
@@ -125,15 +129,35 @@ export default function AccountsPage() {
                 onAccountUpdated={loadAccounts}
                 account={selectedAccount}
             />
+            {/* Dialog de nova transação */}
+            {selectedAccount && (
+                <TransactionDialog
+                    open={transactionDialogOpen}
+                    onClose={() => setTransactionDialogOpen(false)}
+                    onTransactionCreated={loadAccounts}
+                    account={selectedAccount}
+                />
+            )}
+            {/* Dialog de histórico de transações */}
+            {selectedAccount && (
+                <TransactionHistoryDialog
+                    open={historyDialogOpen}
+                    onClose={() => setHistoryDialogOpen(false)}
+                    account={selectedAccount}
+                />
+            )}
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">Contas</h1>
-                    <p className="text-muted-foreground mt-2">
+                    <h1 className="text-3xl font-bold text-foreground">🏦 Contas</h1>
+                    <p className="mt-2 text-base text-muted-foreground">
                         Gerencie suas contas bancárias e carteiras
                     </p>
                 </div>
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button
+                    onClick={() => setDialogOpen(true)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                >
                     <span className="mr-2">+</span>
                     Nova Conta
                 </Button>
@@ -141,9 +165,9 @@ export default function AccountsPage() {
 
             {/* Resumo */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center shadow-md hover:shadow-lg transition-shadow">
                     <div className="text-xl mb-1">🇧🇷</div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Reais</h3>
+                    <h3 className="text-xs font-semibold mb-0.5 text-muted-foreground">Saldo em Reais</h3>
                     <CurrencyDisplay
                         amount={getTotalBRLBalance()}
                         size="md"
@@ -151,31 +175,31 @@ export default function AccountsPage() {
                     />
                 </Card>
 
-                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center shadow-md hover:shadow-lg transition-shadow">
                     <div className="text-xl mb-1">🇺🇸</div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Dólares</h3>
+                    <h3 className="text-xs font-semibold mb-0.5 text-muted-foreground">Saldo em Dólares</h3>
                     <div className="text-base font-bold text-foreground">
                         ${(getBalanceByurrency().USD / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </div>
                 </Card>
 
-                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center shadow-md hover:shadow-lg transition-shadow">
                     <div className="text-xl mb-1">🇪🇺</div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Saldo em Euros</h3>
+                    <h3 className="text-xs font-semibold mb-0.5 text-muted-foreground">Saldo em Euros</h3>
                     <div className="text-base font-bold text-foreground">
                         €{(getBalanceByurrency().EUR / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 })}
                     </div>
                 </Card>
 
-                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center shadow-md hover:shadow-lg transition-shadow">
                     <div className="text-xl mb-1">🏦</div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Total de Contas</h3>
+                    <h3 className="text-xs font-semibold mb-0.5 text-muted-foreground">Total de Contas</h3>
                     <div className="text-xl font-bold text-foreground">{accounts.length}</div>
                 </Card>
 
-                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center">
+                <Card className="text-center px-3 py-2 bg-card border-border min-h-0 h-auto flex flex-col justify-center shadow-md hover:shadow-lg transition-shadow">
                     <div className="text-xl mb-1">📈</div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Contas Positivas</h3>
+                    <h3 className="text-xs font-semibold mb-0.5 text-muted-foreground">Contas Positivas</h3>
                     <div className="text-xl font-bold text-primary">
                         {accounts.filter(acc => acc.balance > 0).length}
                     </div>
@@ -183,7 +207,7 @@ export default function AccountsPage() {
             </div>
 
             {/* Lista de Contas */}
-            <Card className="bg-card border-border">
+            <Card className="bg-card border-border shadow-md">
                 <div className="flex items-center justify-between p-6">
                     <h2 className="text-lg font-semibold text-foreground">Todas as Contas</h2>
                     <div className="flex items-center space-x-2">
@@ -284,17 +308,48 @@ export default function AccountsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                <Button variant="ghost" size="sm" onClick={() => {
-                                                    setSelectedAccount(account);
-                                                    setEditDialogOpen(true);
-                                                }}>
-                                                    Editar
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedAccount(account);
+                                                        setTransactionDialogOpen(true);
+                                                    }}
+                                                    className="text-primary hover:bg-primary/10"
+                                                    title="Adicionar aporte ou retirada"
+                                                >
+                                                    💰 Aporte
                                                 </Button>
-                                                <Button variant="ghost" size="sm">
-                                                    Extrato
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedAccount(account);
+                                                        setHistoryDialogOpen(true);
+                                                    }}
+                                                    className="hover:bg-muted"
+                                                    title="Ver histórico de transações"
+                                                >
+                                                    📊 Histórico
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(account)}>
-                                                    Excluir
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedAccount(account);
+                                                        setEditDialogOpen(true);
+                                                    }}
+                                                    className="hover:bg-muted"
+                                                >
+                                                    ✏️ Editar
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(account)}
+                                                    className="text-destructive hover:bg-destructive/10"
+                                                >
+                                                    🗑️ Excluir
                                                 </Button>
                                             </div>
                                         </td>
