@@ -22,9 +22,6 @@ const navItems: NavItem[] = [
     { name: 'Parceladas', href: '/installments' },
     { name: 'Assinaturas', href: '/subscriptions' },
     { name: 'Recorrentes', href: '/recurrences' },
-    { name: 'Rendimentos', href: '/assets' },
-    { name: 'Calendário', href: '/calendar' },
-    { name: 'Relatórios', href: '/reports' },
 ];
 
 export function Header() {
@@ -43,8 +40,8 @@ export function Header() {
     return (
         <header className="bg-background shadow-sm border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                    {/* Logo */}
+                <div className="grid grid-cols-3 items-center h-16">
+                    {/* Logo à esquerda */}
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center space-x-2">
                             <div className="text-2xl">🔮</div>
@@ -52,8 +49,8 @@ export function Header() {
                         </Link>
                     </div>
 
-                    {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-4">
+                    {/* Menu centralizado */}
+                    <div className="hidden md:flex justify-center">
                         {user && (
                             <nav className="flex space-x-1">
                                 {navItems.map((item) => (
@@ -63,8 +60,7 @@ export function Header() {
                                         className={` px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.href)
                                             ? 'bg-accent text-accent-foreground'
                                             : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                                            }
-                    `}
+                                            }`}
                                     >
                                         <span className="mr-1">{item.icon}</span>
                                         {item.name}
@@ -72,23 +68,27 @@ export function Header() {
                                 ))}
                             </nav>
                         )}
-                        <div className="flex items-center space-x-2">
-                            <ThemeToggle />
-                            {user ? (
-                                <Button variant="outline" onClick={signOut} disabled={loading}>
-                                    Sair
-                                </Button>
-                            ) : (
-                                <Button onClick={() => setAuthDialogOpen(true)} disabled={loading}>
-                                    Entrar
-                                </Button>
-                            )}
-                        </div>
                     </div>
 
-                    {/* Mobile menu button and theme toggle */}
-                    <div className="md:hidden flex items-center space-x-2">
+                    {/* Ações à direita */}
+                    <div className="hidden md:flex justify-end items-center space-x-2">
                         <ThemeToggle />
+                        {user ? (
+                            <Button variant="outline" onClick={signOut} disabled={loading}>
+                                Sair
+                            </Button>
+                        ) : (
+                            <Button onClick={() => setAuthDialogOpen(true)} disabled={loading}>
+                                Entrar
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Mobile menu button e theme toggle */}
+                    <div className="md:hidden flex items-center space-x-2 col-span-3 justify-between w-full">
+                        <div className="flex items-center">
+                            <ThemeToggle />
+                        </div>
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                             className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
