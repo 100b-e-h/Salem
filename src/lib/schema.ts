@@ -7,6 +7,7 @@ import {
   date,
   pgEnum,
   decimal,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -110,10 +111,12 @@ export const transactions = salemSchema.table("transactions", {
   categoryId: uuid("category_id").references(() => categories.id, {
     onDelete: "set null",
   }),
+  category: text("category"), // Categoria como texto (alimentacao, transporte, etc)
   description: text("description").notNull(),
   amount: integer("amount").notNull(),
   type: text("type").notNull(),
   date: date("date").notNull(),
+  sharedWith: jsonb("shared_with"), // Array de {id, email, paid} dos usuários compartilhados
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
