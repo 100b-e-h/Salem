@@ -7,6 +7,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from './AuthProvider';
 import { AuthDialog } from './AuthDialog';
 import { Button } from './ui/Button';
+import { useRouter } from 'next/navigation';
 
 interface NavItem {
     name: string;
@@ -29,6 +30,7 @@ export function Header() {
     const [authDialogOpen, setAuthDialogOpen] = useState(false);
     const pathname = usePathname();
     const { user, signOut, loading } = useAuth();
+    const router = useRouter();
 
     const isActive = (href: string) => {
         if (href === '/') {
@@ -40,8 +42,7 @@ export function Header() {
     return (
         <header className="bg-background shadow-sm border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-3 items-center h-16">
-                    {/* Logo à esquerda */}
+                <div className="flex items-center justify-between h-16">
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center space-x-2">
                             <div className="text-2xl">🔮</div>
@@ -49,18 +50,26 @@ export function Header() {
                         </Link>
                     </div>
 
-                    {/* Menu centralizado */}
-                    <div className="hidden md:flex justify-center">
+                    <div className="hidden md:flex justify-center relative z-20">
                         {user && (
                             <nav className="flex space-x-1">
                                 {navItems.map((item) => (
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className={` px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.href)
+                                        onClick={(e) => {
+                                            try {
+                                                e.preventDefault();
+                                            } catch { }
+                                            router.push(item.href);
+                                        }}
+                                        className={` px-3 py-2 rounded-md text-sm font-medium transition-colors pointer-events-auto cursor-pointer ${isActive(item.href)
                                             ? 'bg-accent text-accent-foreground'
                                             : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                                             }`}
+                                        title={item.name}
+                                        role="link"
+                                        tabIndex={0}
                                     >
                                         <span className="mr-1">{item.icon}</span>
                                         {item.name}
@@ -70,8 +79,7 @@ export function Header() {
                         )}
                     </div>
 
-                    {/* Ações à direita */}
-                    <div className="hidden md:flex justify-end items-center space-x-2">
+                    <div className="hidden md:flex justify-end items-center space-x-2 relative z-10">
                         <ThemeToggle />
                         {user ? (
                             <Button variant="outline" onClick={signOut} disabled={loading}>
@@ -84,8 +92,7 @@ export function Header() {
                         )}
                     </div>
 
-                    {/* Mobile menu button e theme toggle */}
-                    <div className="md:hidden flex items-center space-x-2 col-span-3 justify-between w-full">
+                    <div className="md:hidden flex items-center space-x-2 justify-between w-full">
                         <div className="flex items-center">
                             <ThemeToggle />
                         </div>
@@ -119,7 +126,6 @@ export function Header() {
                     </div>
                 </div>
 
-                {/* Mobile Navigation */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-border">
@@ -127,11 +133,18 @@ export function Header() {
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className={` block px-3 py-2 rounded-md text-base font-medium transition-colors ${isActive(item.href)
+                                    onClick={(e) => {
+                                        try { e.preventDefault(); } catch { }
+                                        setIsMobileMenuOpen(false);
+                                        router.push(item.href);
+                                    }}
+                                    className={` block px-3 py-2 rounded-md text-base font-medium transition-colors pointer-events-auto cursor-pointer ${isActive(item.href)
                                         ? 'bg-accent text-accent-foreground'
                                         : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                                         }`}
+                                    title={item.name}
+                                    role="link"
+                                    tabIndex={0}
                                 >
                                     <span className="mr-2">{item.icon}</span>
                                     {item.name}
