@@ -10,6 +10,17 @@ import { Card as CardType, Invoice, Transaction } from '@/types';
 import { NewCardDialog } from './components/NewCardDialog';
 import { EditCardDialog } from './components/EditCardDialog';
 
+interface CardUsage {
+    used: number;
+    available: number;
+    percentage: number;
+    limit: number;
+}
+
+interface InvoiceWithTransactions extends Invoice {
+    transactions?: Transaction[];
+}
+
 export default function CardsPage() {
     const { user } = useAuth();
     const [cards, setCards] = useState<CardType[]>([]);
@@ -70,49 +81,44 @@ export default function CardsPage() {
         );
     };
 
-    const calculateLimitUsage = (card: CardType) => {
+    const calculateLimitUsage = (card: CardType): CardUsage => {
         const currentInvoice = getCardInvoice(card.id);
-        const usedAmount = currentInvoice?.totalAmount || 0;
+        let usedAmount = 0;
+        const inv = currentInvoice as InvoiceWithTransactions | undefined;
+        if (inv && Array.isArray(inv.transactions)) {
+            usedAmount = inv.transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+        } else {
+            usedAmount = currentInvoice?.totalAmount || 0;
+        }
 
-        // Heuristic normalize: some older records were double-converted and are 100x too large.
-        // Compute average limit to detect outliers, then divide by 100 when necessary.
-        const allLimits = cards.map(c => c.totalLimit);
-        const avgLimit = allLimits.length ? allLimits.reduce((a, b) => a + b, 0) / allLimits.length : 0;
-
-        const normalize = (value: number) => {
-            if (!avgLimit) {
-                // if no baseline, only reduce extreme values
-                return value > 1_000_000 ? Math.round(value / 100) : value;
-            }
-            // if value is an extreme outlier compared to average (e.g., 50x larger), divide by 100
-            return value > avgLimit * 50 ? Math.round(value / 100) : value;
-        };
-
-        const normalizedLimit = normalize(card.totalLimit);
-        const percentage = normalizedLimit > 0 ? (usedAmount / normalizedLimit) * 100 : 0;
+        const normalizedLimit = Math.round(card.totalLimit / 100);
+        const usedCentavos = usedAmount;
+        const percentage = normalizedLimit > 0 ? (usedCentavos / normalizedLimit) * 100 : 0;
 
         return {
-            used: usedAmount,
-            available: normalizedLimit - usedAmount,
-            percentage: Math.min(percentage, 100)
+            used: usedCentavos,
+            available: normalizedLimit - usedCentavos,
+            percentage: Math.min(percentage, 100),
+            limit: normalizedLimit,
         };
     };
 
-    const getTotalLimit = () => {
-        return cards.reduce((total, card) => total + card.totalLimit, 0);
+    const getTotalLimit = (): number => {
+        return cards.reduce((total, card) => {
+            const usage = calculateLimitUsage(card);
+            return total + usage.limit;
+        }, 0);
     };
 
-    const getTotalUsed = () => {
+    const getTotalUsed = (): number => {
         return cards.reduce((total, card) => {
             const usage = calculateLimitUsage(card);
             return total + usage.used;
         }, 0);
     };
 
-    // Estado para dialogs/menus (um por cartão)
     const [openInvoiceDialogId, setOpenInvoiceDialogId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    // Estados para edição de cartão
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [cardToEdit, setCardToEdit] = useState<CardType | null>(null);
 
@@ -134,13 +140,11 @@ export default function CardsPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Dialog de novo cartão */}
             <NewCardDialog
                 open={dialogOpen}
                 onClose={() => setDialogOpen(false)}
                 onCardCreated={loadData}
             />
-            {/* Dialog de edição de cartão */}
             {cardToEdit && (
                 <EditCardDialog
                     open={editDialogOpen}
@@ -150,7 +154,6 @@ export default function CardsPage() {
                 />
             )}
 
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Cartões</h1>
@@ -164,7 +167,6 @@ export default function CardsPage() {
                 </Button>
             </div>
 
-            {/* Resumo - cards compactos e padronizados */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <Card className="bg-card border-border text-center px-3 py-2 min-h-0 h-auto flex flex-col justify-center">
                     <CardContent className="p-0 flex flex-col items-center">
@@ -177,14 +179,14 @@ export default function CardsPage() {
                     <CardContent className="p-0 flex flex-col items-center">
                         <div className="text-xl mb-1">💰</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Limite Total</h3>
-                        <CurrencyDisplay amount={getTotalLimit() / 100} size="md" variant="neutral" />
+                        <CurrencyDisplay amount={getTotalLimit()} size="md" variant="neutral" />
                     </CardContent>
                 </Card>
                 <Card className="bg-card border-border text-center px-3 py-2 min-h-0 h-auto flex flex-col justify-center">
                     <CardContent className="p-0 flex flex-col items-center">
                         <div className="text-xl mb-1">📊</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Usado</h3>
-                        <CurrencyDisplay amount={getTotalUsed() / 100} size="md" variant="negative" />
+                        <CurrencyDisplay amount={getTotalUsed()} size="md" variant="negative" />
                     </CardContent>
                 </Card>
                 <Card className="bg-card border-border text-center px-3 py-2 min-h-0 h-auto flex flex-col justify-center">
@@ -192,7 +194,7 @@ export default function CardsPage() {
                         <div className="text-xl mb-1">✅</div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-0.5">Disponível</h3>
                         <CurrencyDisplay
-                            amount={(getTotalLimit() - getTotalUsed()) / 100}
+                            amount={(getTotalLimit() - getTotalUsed())}
                             size="md"
                             variant="positive"
                         />
@@ -200,7 +202,6 @@ export default function CardsPage() {
                 </Card>
             </div>
 
-            {/* Lista de Cartões */}
             {cards.length === 0 ? (
                 <Card>
                     <CardContent className="text-center py-12">
@@ -235,7 +236,6 @@ export default function CardsPage() {
                         return (
                             <Card key={card.id} className="bg-card border-border">
                                 <CardContent className="p-4">
-                                    {/* Header do Cartão */}
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center space-x-3">
                                             <div className="text-xl">💳</div>
@@ -269,11 +269,10 @@ export default function CardsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Limite */}
                                     <div className="mb-3">
                                         <div className="flex justify-between text-xs mb-1">
                                             <span className="text-muted-foreground">Limite:</span>
-                                            <CurrencyDisplay amount={card.totalLimit / 100} size="sm" />
+                                            <CurrencyDisplay amount={usage.limit} size="sm" />
                                         </div>
                                         <div className="flex justify-between text-xs mb-1">
                                             <span className="text-muted-foreground">Usado:</span>
@@ -281,9 +280,8 @@ export default function CardsPage() {
                                         </div>
                                         <div className="flex justify-between text-xs mb-2">
                                             <span className="text-muted-foreground">Disponível:</span>
-                                            <CurrencyDisplay amount={usage.available / 100} size="sm" variant="positive" />
+                                            <CurrencyDisplay amount={usage.available} size="sm" variant="positive" />
                                         </div>
-                                        {/* Barra de progresso */}
                                         <div className="bg-secondary rounded-full h-2">
                                             <div
                                                 className={`h-2 rounded-full transition-all duration-300 ${usage.percentage > 80 ? 'bg-destructive' :
@@ -294,7 +292,6 @@ export default function CardsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Faturas */}
                                     <div className="space-y-2 mb-3">
                                         <div className="flex justify-between text-xs">
                                             <span className="text-muted-foreground">Fatura Atual:</span>
@@ -324,7 +321,6 @@ export default function CardsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Datas importantes */}
                                     <div className="bg-muted rounded-lg p-2 mb-3">
                                         <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                                             <span>Fechamento:</span>
@@ -336,14 +332,12 @@ export default function CardsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Ações */}
                                     <div className="flex space-x-2">
                                         <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpenInvoiceDialogId(card.id)}>
                                             Ver Fatura
                                         </Button>
                                     </div>
 
-                                    {/* Dialog de lançamentos da fatura */}
                                     {openInvoiceDialogId === card.id && (
                                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                             <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-lg p-6 relative">
