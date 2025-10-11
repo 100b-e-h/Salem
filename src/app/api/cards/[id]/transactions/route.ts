@@ -76,12 +76,16 @@ export async function POST(
 
     // Validar dados da requisição
     const body = await request.json();
+
     let validatedData;
     try {
       validatedData = validateRequest(createTransactionSchema, body);
     } catch (error) {
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Dados inválidos" },
+        {
+          error: error instanceof Error ? error.message : "Dados inválidos",
+          receivedData: body,
+        },
         { status: 400 }
       );
     }
