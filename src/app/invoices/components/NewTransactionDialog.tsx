@@ -58,6 +58,8 @@ export function NewTransactionDialog({
     const [isSearching, setIsSearching] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
+    const [installments, setInstallments] = useState(1);
     const [importMode, setImportMode] = useState<'manual' | 'csv'>('manual');
 
     // Debounced user search
@@ -77,8 +79,7 @@ export function NewTransactionDialog({
                 );
                 setSearchResults(filtered);
             }
-        } catch (error) {
-            console.error('Erro ao buscar usuários:', error);
+        } catch {
             setSearchResults([]);
         } finally {
             setIsSearching(false);
@@ -117,8 +118,7 @@ export function NewTransactionDialog({
                     amount: Math.abs(amount),
                     date,
                     category: category || null,
-                    month: parseInt(selectedMonth.split('-')[1]),
-                    year: parseInt(selectedMonth.split('-')[0]),
+                    installments: paymentType === 'installment' ? installments : 1,
                     sharedWith: sharedUsers.length > 0 ? sharedUsers : null,
                 }),
             });
@@ -133,11 +133,12 @@ export function NewTransactionDialog({
             setEmailSearch('');
             setSearchResults([]);
             setDate(new Date().toISOString().split('T')[0]);
+            setPaymentType('cash');
+            setInstallments(1);
 
             onClose();
             onTransactionCreated();
-        } catch (error) {
-            console.error('Erro ao criar lançamento:', error);
+        } catch {
             alert('Erro ao criar lançamento. Tente novamente.');
         } finally {
             setIsSubmitting(false);
@@ -153,8 +154,6 @@ export function NewTransactionDialog({
             const formData = new FormData();
             formData.append('file', csvFile);
             formData.append('cardId', card.id);
-            formData.append('month', selectedMonth.split('-')[1]);
-            formData.append('year', selectedMonth.split('-')[0]);
 
             const response = await fetch(`/api/cards/${card.id}/transactions/import`, {
                 method: 'POST',
@@ -168,8 +167,7 @@ export function NewTransactionDialog({
             setCsvFile(null);
             onClose();
             onTransactionCreated();
-        } catch (error) {
-            console.error('Erro ao importar CSV:', error);
+        } catch {
             alert('Erro ao importar CSV. Verifique o formato do arquivo.');
         } finally {
             setIsSubmitting(false);
@@ -255,6 +253,56 @@ export function NewTransactionDialog({
                             </div>
                         </div>
 
+                        <div className="space-y-3">
+                            <Label className="text-foreground font-medium">
+                                💳 Forma de Pagamento
+                            </Label>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentType('cash')}
+                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${paymentType === 'cash'
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    💵 À Vista
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentType('installment')}
+                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${paymentType === 'installment'
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    📅 Parcelado
+                                </button>
+                            </div>
+
+                            {paymentType === 'installment' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="installments" className="text-foreground font-medium">
+                                        Número de Parcelas
+                                    </Label>
+                                    <select
+                                        id="installments"
+                                        value={installments}
+                                        onChange={(e) => setInstallments(parseInt(e.target.value))}
+                                        className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
+                                            <option key={num} value={num}>
+                                                {num}x {paymentType === 'installment' && amount > 0 &&
+                                                    `(R$ ${(amount / num).toFixed(2)} por parcela)`
+                                                }
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="category" className="text-foreground font-medium">
                                 Categoria
@@ -337,8 +385,8 @@ export function NewTransactionDialog({
                                                     type="button"
                                                     onClick={() => toggleUserPaid(sharedUser.id)}
                                                     className={`text-xs px-2 py-1 rounded transition-colors ${sharedUser.paid
-                                                            ? 'bg-green-500/20 text-green-700 dark:text-green-400'
-                                                            : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                                                        ? 'bg-green-500/20 text-green-700 dark:text-green-400'
+                                                        : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
                                                         }`}
                                                 >
                                                     {sharedUser.paid ? '✅ Pago' : '⏳ Pendente'}
