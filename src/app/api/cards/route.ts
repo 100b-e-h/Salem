@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { drizzleDb } from "@/lib/drizzle-database";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { validateRequest, createCardSchema } from "@/lib/validation";
 
 async function getAuthenticatedUser() {
   const cookieStore = await cookies();
@@ -46,14 +47,25 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getAuthenticatedUser();
-    const body = await request.json();
 
-    const card = await drizzleDb.createCard(body, user.id);
+    // Validar dados da requisição
+    const body = await request.json();
+    let validatedData;
+    try {
+      validatedData = validateRequest(createCardSchema, body);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Dados inválidos" },
+        { status: 400 }
+      );
+    }
+
+    const card = await drizzleDb.createCard(validatedData, user.id);
     return NextResponse.json(card);
-  } catch (error) {
-    console.error("Error creating card:", error);
+  } catch (err) {
+    console.error("Error creating card:", err);
     return NextResponse.json(
-      { error: "Failed to create card" },
+      { error: "Erro ao criar cartão" },
       { status: 500 }
     );
   }

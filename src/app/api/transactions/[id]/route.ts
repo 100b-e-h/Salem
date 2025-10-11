@@ -225,3 +225,89 @@ export async function PATCH(
     );
   }
 }
+
+// DELETE - Deletar uma transação
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: transactionId } = await params;
+
+    // Buscar a transação para verificar se existe e pertence ao usuário
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.id, transactionId),
+          eq(transactions.userId, user.id)
+        )
+      );
+
+    if (!transaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 }
+      );
+    }
+
+    // Se a transação tem cardId, precisamos atualizar a fatura
+    if (transaction.cardId) {
+      // Buscar a fatura correspondente
+      const transactionDate = new Date(transaction.date);
+      const month = transactionDate.getMonth() + 1;
+      const year = transactionDate.getFullYear();
+
+      const [invoice] = await db
+        .select()
+        .from(invoices)
+        .where(
+          and(
+            eq(invoices.cardId, transaction.cardId),
+            eq(invoices.month, month),
+            eq(invoices.year, year)
+          )
+        );
+
+      if (invoice) {
+        // Atualizar o valor da fatura subtraindo o valor da transação
+        const newTotal = Math.max(0, invoice.totalAmount - transaction.amount);
+
+        if (newTotal === 0) {
+          // Se a fatura ficou zerada, deletar ela
+          await db.delete(invoices).where(eq(invoices.id, invoice.id));
+        } else {
+          // Caso contrário, atualizar o valor
+          await db
+            .update(invoices)
+            .set({
+              totalAmount: newTotal,
+              updatedAt: new Date(),
+            })
+            .where(eq(invoices.id, invoice.id));
+        }
+      }
+    }
+
+    // Deletar a transação
+    await db.delete(transactions).where(eq(transactions.id, transactionId));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    return NextResponse.json(
+      { error: "Failed to delete transaction" },
+      { status: 500 }
+    );
+  }
+}

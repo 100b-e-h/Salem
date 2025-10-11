@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { drizzleDb } from "@/lib/drizzle-database";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -29,9 +29,19 @@ async function getAuthenticatedUser() {
   return user;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser();
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+
+    // Se status for especificado como 'open', buscar apenas faturas em aberto
+    if (status === "open") {
+      const invoices = await drizzleDb.getOpenInvoices(user.id);
+      return NextResponse.json(invoices);
+    }
+
+    // Caso contrário, buscar todas as faturas
     const invoices = await drizzleDb.getAllInvoices(user.id);
     return NextResponse.json(invoices);
   } catch (error) {

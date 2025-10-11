@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { drizzleDb } from "@/lib/drizzle-database";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { validateRequest, createAccountSchema } from "@/lib/validation";
 
 async function getAuthenticatedUser() {
   const cookieStore = await cookies();
@@ -46,15 +47,23 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getAuthenticatedUser();
-    const body = await request.json();
 
-    const account = await drizzleDb.createAccount(body, user.id);
+    // Validar dados da requisição
+    const body = await request.json();
+    let validatedData;
+    try {
+      validatedData = validateRequest(createAccountSchema, body);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Dados inválidos" },
+        { status: 400 }
+      );
+    }
+
+    const account = await drizzleDb.createAccount(validatedData, user.id);
     return NextResponse.json(account);
-  } catch (error) {
-    console.error("Error creating account:", error);
-    return NextResponse.json(
-      { error: "Failed to create account" },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error("Error creating account:", err);
+    return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 });
   }
 }
