@@ -61,8 +61,8 @@ export function EditAccountDialog({ open, onClose, onAccountUpdated, account }: 
 
             onClose();
             onAccountUpdated();
-        } catch (error) {
-            console.error('Erro ao editar conta:', error);
+        } catch {
+            alert('Erro ao editar conta');
         } finally {
             setIsSubmitting(false);
         }
