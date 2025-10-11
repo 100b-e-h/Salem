@@ -16,7 +16,6 @@ function LoginContent() {
         }
     }, [user, router, redirectTo])
 
-    // Show nothing while redirecting
     if (user) {
         return null
     }
