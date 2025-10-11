@@ -57,8 +57,8 @@ export function NewAccountDialog({ open, onClose, onAccountCreated }: NewAccount
             // Close dialog and refresh data
             onClose();
             onAccountCreated();
-        } catch (error) {
-            console.error('Erro ao criar conta:', error);
+        } catch {
+            alert('Erro ao criar conta');
         } finally {
             setIsSubmitting(false);
         }
