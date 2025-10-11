@@ -115,19 +115,5 @@ export function formatCentavosForInput(centavos: number): string {
   return reais.toFixed(2);
 }
 
-/**
- * Utilitário para debugar conversões
- */
-export function debugMoneyConversion(
-  value: number,
-  type: "reais" | "centavos"
-) {
-  if (type === "reais") {
-    console.log(`${value} reais = ${reaisToCentavos(value)} centavos`);
-  } else {
-    console.log(`${value} centavos = ${centavosToReais(value)} reais`);
-  }
-}
-
 export type CentavosValue = number;
 export type ReaisValue = number;
