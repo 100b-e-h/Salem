@@ -48,8 +48,8 @@ export default function CardsPage() {
 
             setCards(cardsData);
             setInvoices(invoicesData);
-        } catch (error) {
-            console.error('Erro ao carregar dados dos cartões:', error);
+        } catch {
+            // Erro silencioso no carregamento
         } finally {
             setLoading(false);
         }
@@ -82,13 +82,20 @@ export default function CardsPage() {
     };
 
     const calculateLimitUsage = (card: CardType): CardUsage => {
-        const currentInvoice = getCardInvoice(card.id);
+        const openInvoices = invoices.filter(invoice =>
+            invoice.cardId === card.id &&
+            invoice.status === 'open'
+        );
+
         let usedAmount = 0;
-        const inv = currentInvoice as InvoiceWithTransactions | undefined;
-        if (inv && Array.isArray(inv.transactions)) {
-            usedAmount = inv.transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
-        } else {
-            usedAmount = currentInvoice?.totalAmount || 0;
+
+        for (const invoice of openInvoices) {
+            const inv = invoice as InvoiceWithTransactions | undefined;
+            if (inv && Array.isArray(inv.transactions)) {
+                usedAmount += inv.transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+            } else {
+                usedAmount += invoice.totalAmount || 0;
+            }
         }
 
         const normalizedLimit = Math.round(card.totalLimit / 100);
