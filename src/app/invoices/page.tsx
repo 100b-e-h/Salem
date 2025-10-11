@@ -54,6 +54,26 @@ export default function InvoicesPage() {
         setEditDialogOpen(true);
     };
 
+    const handleDeleteTransaction = async (tx: Transaction) => {
+        if (!confirm(`Tem certeza que deseja deletar "${tx.description}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/transactions/${tx.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete transaction');
+            }
+
+            await Promise.all([fetchTransactions(), loadData()]);
+        } catch {
+            alert('Erro ao deletar transação');
+        }
+    };
+
     const loadData = useCallback(async () => {
         if (!user) return;
 
@@ -74,8 +94,8 @@ export default function InvoicesPage() {
 
             setCards(cardsData);
             setInvoices(invoicesData);
-        } catch (error) {
-            console.error('Erro ao carregar dados das faturas:', error);
+        } catch {
+            // Erro silencioso - falha no carregamento
         } finally {
             setLoading(false);
         }
@@ -113,8 +133,11 @@ export default function InvoicesPage() {
         );
     };
 
+    const openInvoices = invoices.filter(invoice => invoice.status === 'open');
+    const paidInvoices = invoices.filter(invoice => invoice.status === 'paid');
+
     const getMonthOptions = useMemo(() => {
-        const options = new Map<string, { value: string; label: string; isCurrent: boolean }>();
+        const options = new Map<string, { value: string; label: string; isCurrent: boolean; status?: string }>();
         const currentDate = new Date();
         const currentYearMonth = format(currentDate, 'yyyy-MM');
 
@@ -124,20 +147,49 @@ export default function InvoicesPage() {
             isCurrent: true
         });
 
-        invoices.forEach(invoice => {
+        openInvoices.forEach(invoice => {
             const yearMonth = `${invoice.year}-${String(invoice.month).padStart(2, '0')}`;
             if (!options.has(yearMonth)) {
                 const date = new Date(invoice.year, invoice.month - 1);
                 options.set(yearMonth, {
                     value: yearMonth,
-                    label: format(date, 'MMM/yyyy'),
-                    isCurrent: false
+                    label: `${format(date, 'MMM/yyyy')} (Aberta)`,
+                    isCurrent: false,
+                    status: 'open'
                 });
             }
         });
 
+        // Adicionar meses de faturas pagas
+        paidInvoices.forEach(invoice => {
+            const yearMonth = `${invoice.year}-${String(invoice.month).padStart(2, '0')}`;
+            if (!options.has(yearMonth)) {
+                const date = new Date(invoice.year, invoice.month - 1);
+                options.set(yearMonth, {
+                    value: yearMonth,
+                    label: `${format(date, 'MMM/yyyy')} (Paga)`,
+                    isCurrent: false,
+                    status: 'paid'
+                });
+            }
+        });
+
+        for (let i = 1; i <= 12; i++) {
+            const futureDate = new Date(currentDate);
+            futureDate.setMonth(currentDate.getMonth() + i);
+            const futureYearMonth = format(futureDate, 'yyyy-MM');
+
+            if (!options.has(futureYearMonth)) {
+                options.set(futureYearMonth, {
+                    value: futureYearMonth,
+                    label: format(futureDate, 'MMM/yyyy'),
+                    isCurrent: false
+                });
+            }
+        }
+
         return Array.from(options.values()).sort((a, b) => b.value.localeCompare(a.value));
-    }, [invoices]);
+    }, [openInvoices, paidInvoices]);
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch (status) {
@@ -152,10 +204,49 @@ export default function InvoicesPage() {
         }
     };
 
-    const calculateDueDate = (card: CardType, yearMonth: string) => {
-        const [year, month] = yearMonth.split('-').map(Number);
-        const dueDate = new Date(year, month - 1, card.dueDay);
-        return dueDate;
+    const markInvoiceAsPaid = async (invoiceId: string) => {
+        try {
+            const response = await fetch(`/api/invoices/${invoiceId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'mark_paid'
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to mark invoice as paid');
+            }
+
+            // Recarregar os dados para atualizar a lista
+            await loadData();
+        } catch {
+            alert('Erro ao marcar fatura como paga');
+        }
+    };
+
+    const reopenInvoice = async (invoiceId: string) => {
+        try {
+            const response = await fetch(`/api/invoices/${invoiceId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'reopen'
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to reopen invoice');
+            }
+
+            await loadData();
+        } catch {
+            alert('Erro ao reabrir fatura');
+        }
     };
 
     if (loading) {
@@ -291,52 +382,65 @@ export default function InvoicesPage() {
                                 </div>
 
                                 {currentInvoice ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                                            <div className="text-2xl mb-2">📊</div>
-                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
-                                                Total Previsto
-                                            </h3>
-                                            <CurrencyDisplay
-                                                amount={currentInvoice.totalAmount}
-                                                size="lg"
-                                                variant="negative"
-                                            />
-                                        </div>
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                <div className="text-3xl mb-3">�</div>
+                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                    Valor Total da Fatura
+                                                </h3>
+                                                <CurrencyDisplay
+                                                    amount={currentInvoice.totalAmount}
+                                                    size="xl"
+                                                    variant="negative"
+                                                />
+                                            </div>
 
-                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                                            <div className="text-2xl mb-2">🔒</div>
-                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
-                                                Total Fechado
-                                            </h3>
-                                            <CurrencyDisplay
-                                                amount={currentInvoice.totalAmount}
-                                                size="lg"
-                                                variant="neutral"
-                                            />
-                                        </div>
+                                            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                <div className="text-3xl mb-3">�</div>
+                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                    Data de Vencimento
+                                                </h3>
+                                                <div className="text-lg font-semibold text-foreground">
+                                                    {currentInvoice.dueDate ? formatDate(new Date(currentInvoice.dueDate)) : 'N/A'}
+                                                </div>
+                                            </div>
 
-                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                                            <div className="text-2xl mb-2">✅</div>
-                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
-                                                Total Pago
-                                            </h3>
-                                            <CurrencyDisplay
-                                                amount={currentInvoice.paidAmount}
-                                                size="lg"
-                                                variant="positive"
-                                            />
-                                        </div>
-
-                                        <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
-                                            <div className="text-2xl mb-2">📅</div>
-                                            <h3 className="text-xs font-medium text-muted-foreground mb-1">
-                                                Vencimento
-                                            </h3>
-                                            <div className="text-base font-semibold text-foreground">
-                                                {formatDate(calculateDueDate(selectedCardData, selectedMonth))}
+                                            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                <div className="text-3xl mb-3">
+                                                    {currentInvoice.status === 'paid' ? '✅' : '⏳'}
+                                                </div>
+                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                    Status da Fatura
+                                                </h3>
+                                                <div className="flex justify-center">
+                                                    {getStatusBadge(currentInvoice.status)}
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {currentInvoice.status === 'open' && (
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    onClick={() => markInvoiceAsPaid(currentInvoice.id)}
+                                                    className="bg-green-600 text-white hover:bg-green-700"
+                                                >
+                                                    ✅ Marcar como Paga
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {currentInvoice.status === 'paid' && (
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    onClick={() => reopenInvoice(currentInvoice.id)}
+                                                    variant="outline"
+                                                    className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                                                >
+                                                    🔄 Reabrir Fatura
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="text-center py-8">
@@ -356,46 +460,6 @@ export default function InvoicesPage() {
                                         </Button>
                                     </div>
                                 )}
-
-                                <div className="border-t border-border pt-6 mt-6">
-                                    <h3 className="text-lg font-medium text-foreground mb-4">
-                                        ℹ️ Informações do Cartão
-                                    </h3>
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Limite Total:</span>
-                                            <div className="font-medium">
-                                                <CurrencyDisplay amount={Math.round(selectedCardData.totalLimit / 100)} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Dia de Fechamento:</span>
-                                            <div className="font-medium text-foreground">{selectedCardData.closingDay}</div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Dia de Vencimento:</span>
-                                            <div className="font-medium text-foreground">{selectedCardData.dueDay}</div>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Limite Disponível:</span>
-                                            <div className="font-medium">
-                                                {(() => {
-                                                    const normalizedLimit = Math.round(selectedCardData.totalLimit / 100);
-                                                    const usedFromTransactions = transactions && transactions.length > 0
-                                                        ? transactions.reduce((s, tx) => s + (tx.amount || 0), 0)
-                                                        : (currentInvoice?.totalAmount || 0);
-                                                    const available = normalizedLimit - usedFromTransactions;
-                                                    return (
-                                                        <CurrencyDisplay
-                                                            amount={available}
-                                                            variant="positive"
-                                                        />
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </Card>
                     )}
@@ -428,6 +492,7 @@ export default function InvoicesPage() {
                             <TransactionsTable
                                 transactions={transactions}
                                 onEdit={handleEditTransaction}
+                                onDelete={handleDeleteTransaction}
                             />
                         </div>
                     </Card>
