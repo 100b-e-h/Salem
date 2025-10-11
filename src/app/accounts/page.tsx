@@ -34,8 +34,7 @@ export default function AccountsPage() {
             }
             const data = await response.json();
             setAccounts(data);
-        } catch (error) {
-            console.error('Erro ao carregar contas:', error);
+        } catch {
         } finally {
             setLoading(false);
         }
@@ -47,7 +46,6 @@ export default function AccountsPage() {
         }
     }, [user, loadAccounts]);
 
-    // Separar valores por moeda
     const getBalanceByurrency = () => {
         const balances = { BRL: 0, USD: 0, EUR: 0 };
         accounts.forEach(account => {
@@ -116,20 +114,17 @@ export default function AccountsPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Dialog de nova conta */}
             <NewAccountDialog
                 open={dialogOpen}
                 onClose={() => setDialogOpen(false)}
                 onAccountCreated={loadAccounts}
             />
-            {/* Dialog de edição de conta */}
             <EditAccountDialog
                 open={editDialogOpen}
                 onClose={() => setEditDialogOpen(false)}
                 onAccountUpdated={loadAccounts}
                 account={selectedAccount}
             />
-            {/* Dialog de nova transação */}
             {selectedAccount && (
                 <TransactionDialog
                     open={transactionDialogOpen}
@@ -138,7 +133,6 @@ export default function AccountsPage() {
                     account={selectedAccount}
                 />
             )}
-            {/* Dialog de histórico de transações */}
             {selectedAccount && (
                 <TransactionHistoryDialog
                     open={historyDialogOpen}
@@ -146,7 +140,6 @@ export default function AccountsPage() {
                     account={selectedAccount}
                 />
             )}
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">🏦 Contas</h1>
@@ -206,7 +199,6 @@ export default function AccountsPage() {
                 </Card>
             </div>
 
-            {/* Lista de Contas */}
             <Card className="bg-card border-border shadow-md">
                 <div className="flex items-center justify-between p-6">
                     <h2 className="text-lg font-semibold text-foreground">Todas as Contas</h2>
