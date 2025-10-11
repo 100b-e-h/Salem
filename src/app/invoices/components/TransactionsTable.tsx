@@ -8,9 +8,10 @@ type TxWithCategory = TxType & { category?: string; categoryId?: string };
 interface TransactionsTableProps {
     transactions: TxType[];
     onEdit: (transaction: TxType) => void;
+    onDelete: (transaction: TxType) => void;
 }
 
-export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, onEdit }) => {
+export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, onEdit, onDelete }) => {
     const getCategoryLabel = (tx: TxWithCategory) => {
         if (tx.category && typeof tx.category === 'string') return tx.category;
         if (tx.categoryId && typeof tx.categoryId === 'string') return tx.categoryId;
@@ -45,9 +46,19 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                                     <CurrencyDisplay amount={tx.amount} />
                                 </td>
                                 <td className="px-3 py-2 text-center">
-                                    <Button size="sm" variant="outline" onClick={() => onEdit(tx as TxType)}>
-                                        ✏️ Editar
-                                    </Button>
+                                    <div className="flex gap-1 justify-center">
+                                        <Button size="sm" variant="outline" onClick={() => onEdit(tx as TxType)}>
+                                            ✏️ Editar
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => onDelete(tx as TxType)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            🗑️ Deletar
+                                        </Button>
+                                    </div>
                                 </td>
                             </tr>
                         ))
