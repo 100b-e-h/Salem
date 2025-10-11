@@ -27,7 +27,10 @@ export const descriptionSchema = z
   .string()
   .min(1, "Descrição é obrigatória")
   .max(255, "Descrição muito longa")
-  .regex(/^[a-zA-Z0-9\s\-_.,!?()]+$/, "Descrição contém caracteres inválidos");
+  .regex(
+    /^[a-zA-Z0-9\sÀ-ÿ\-_.,!?()@#$%&*+=:;/\\]+$/,
+    "Descrição contém caracteres inválidos"
+  );
 
 export const uuidSchema = z.string().uuid("ID inválido");
 
@@ -61,28 +64,16 @@ export const createCardSchema = z.object({
   dueDay: z.number().int().min(1).max(31, "Dia de vencimento inválido"),
 });
 
-// Schema para criar transação
+// Schema para criar transação (temporariamente simplificado)
 export const createTransactionSchema = z.object({
-  amount: amountSchema,
-  description: descriptionSchema,
-  date: dateSchema,
-  category: z.string().max(50, "Categoria muito longa").optional(),
-  installments: z
-    .number()
-    .int()
-    .min(1)
-    .max(36, "Número de parcelas inválido")
-    .optional()
-    .default(1),
-  sharedWith: z
-    .array(
-      z.object({
-        id: uuidSchema,
-        email: emailSchema,
-        paid: z.boolean().optional().default(false),
-      })
-    )
-    .optional(),
+  amount: z.number().positive("Valor deve ser positivo"),
+  description: z.string().min(1, "Descrição é obrigatória"),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
+  category: z.string().nullable().optional(),
+  installments: z.number().int().min(1).optional().default(1),
+  sharedWith: z.any().optional(),
 });
 
 // Schema para criar fatura
