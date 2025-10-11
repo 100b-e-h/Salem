@@ -69,8 +69,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             if (!res.ok) throw new Error('Failed to update');
             onSaved();
             onOpenChange(false);
-        } catch (err) {
-            console.error('Failed to save transaction', err);
+        } catch {
             alert('Erro ao salvar transação');
         } finally {
             setIsSaving(false);
