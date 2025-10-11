@@ -39,8 +39,8 @@ export function EditCardDialog({ open, onClose, card, onCardUpdated }: EditCardD
             if (!response.ok) throw new Error('Erro ao atualizar cartão');
             onClose();
             onCardUpdated();
-        } catch (error) {
-            console.error('Erro ao atualizar cartão:', error);
+        } catch {
+            alert('Erro ao atualizar cartão');
         } finally {
             setIsSubmitting(false);
         }
