@@ -52,8 +52,8 @@ export function TransactionHistoryDialog({ open, onClose, account }: Transaction
                 const data = await response.json();
                 setTransactions(data);
             }
-        } catch (error) {
-            console.error('Erro ao carregar transações:', error);
+        } catch {
+            // Erro silencioso no carregamento
         } finally {
             setLoading(false);
         }
