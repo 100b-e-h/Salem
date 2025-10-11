@@ -60,8 +60,8 @@ export function NewCardDialog({ open, onClose, onCardCreated }: NewCardDialogPro
             // Close dialog and refresh data
             onClose();
             onCardCreated();
-        } catch (error) {
-            console.error('Erro ao criar cartão:', error);
+        } catch {
+            alert('Erro ao criar cartão');
         } finally {
             setIsSubmitting(false);
         }
