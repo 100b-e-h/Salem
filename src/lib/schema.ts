@@ -73,6 +73,7 @@ export const invoices = salemSchema.table("invoices", {
   totalAmount: integer("total_amount").notNull().default(0),
   paidAmount: integer("paid_amount").notNull().default(0),
   dueDate: date("due_date").notNull(),
+  closingDate: date("closing_date"),
   status: invoiceStatusEnum("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -117,6 +118,10 @@ export const transactions = salemSchema.table("transactions", {
   type: text("type").notNull(),
   date: date("date").notNull(),
   sharedWith: jsonb("shared_with"), // Array de {id, email, paid} dos usuários compartilhados
+  // Campos de parcelamento
+  installments: integer("installments").default(1), // Número de parcelas (1 = à vista)
+  currentInstallment: integer("current_installment").default(1), // Parcela atual
+  parentTransactionId: uuid("parent_transaction_id"), // ID da transação pai (para parcelas)
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
