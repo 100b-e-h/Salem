@@ -61,8 +61,7 @@ export function TransactionDialog({ open, onClose, onTransactionCreated, account
             // Close dialog and refresh data
             onClose();
             onTransactionCreated();
-        } catch (error) {
-            console.error('Erro ao criar transação:', error);
+        } catch {
             alert('Erro ao criar transação. Tente novamente.');
         } finally {
             setIsSubmitting(false);
