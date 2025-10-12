@@ -106,9 +106,14 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   categoryId: string;
+  category?: string;
   tags: string[];
   description: string;
   reconciled: boolean;
+  installments?: number;
+  currentInstallment?: number;
+  parentTransactionId?: string;
+  sharedWith?: Array<{ id: string; email: string; paid: boolean }>;
   createdAt: Date;
   updatedAt: Date;
 }
