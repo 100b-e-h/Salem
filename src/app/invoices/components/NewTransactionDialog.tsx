@@ -106,6 +106,12 @@ export function NewTransactionDialog({
         e.preventDefault();
         if (!user || isSubmitting) return;
 
+        // Validação obrigatória da categoria
+        if (!category) {
+            alert('Por favor, selecione uma categoria para o lançamento.');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const response = await fetch(`/api/cards/${card.id}/transactions`, {
@@ -117,7 +123,7 @@ export function NewTransactionDialog({
                     description,
                     amount: Math.abs(amount),
                     date,
-                    category: category || null,
+                    category,
                     installments: paymentType === 'installment' ? installments : 1,
                     sharedWith: sharedUsers.length > 0 ? sharedUsers : null,
                 }),
@@ -306,13 +312,14 @@ export function NewTransactionDialog({
 
                         <div className="space-y-2">
                             <Label htmlFor="category" className="text-foreground font-medium">
-                                Categoria
+                                Categoria *
                             </Label>
                             <select
                                 id="category"
                                 value={category}
                                 onChange={e => setCategory(e.target.value)}
                                 className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
                             >
                                 <option value="">Selecione uma categoria...</option>
                                 {CATEGORIES.map(cat => (
