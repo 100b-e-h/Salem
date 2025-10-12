@@ -26,6 +26,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
     const [amount, setAmount] = useState(0);
     const [date, setDate] = useState('');
     const [category, setCategory] = useState('');
+    const [installments, setInstallments] = useState(1);
     const [isSaving, setIsSaving] = useState(false);
 
     const CATEGORIES = [
@@ -48,23 +49,38 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             setDate(transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '');
             const tx = transaction as TxWithCat;
             setCategory(tx.category || '');
+            setInstallments(transaction.installments || 1);
         } else {
             setDescription('');
             setAmount(0);
             setDate('');
             setCategory('');
+            setInstallments(1);
         }
     }, [transaction]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!transaction) return;
+
+        // Validação obrigatória da categoria
+        if (!category) {
+            alert('Por favor, selecione uma categoria para o lançamento.');
+            return;
+        }
+
         setIsSaving(true);
         try {
             const res = await fetch(`/api/transactions/${transaction.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ description, amount, date, category }),
+                body: JSON.stringify({
+                    description,
+                    amount,
+                    date,
+                    category,
+                    installments
+                }),
             });
             if (!res.ok) throw new Error('Failed to update');
             onSaved();
@@ -103,12 +119,13 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="category">Categoria</Label>
+                        <Label htmlFor="category">Categoria *</Label>
                         <select
                             id="category"
                             value={category}
                             onChange={(e) => setCategory(e.target.value)}
                             className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            required
                         >
                             <option value="">Selecione uma categoria...</option>
                             {CATEGORIES.map(cat => (
@@ -117,6 +134,27 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                                 </option>
                             ))}
                         </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="installments">Número de Parcelas</Label>
+                        <select
+                            id="installments"
+                            value={installments}
+                            onChange={(e) => setInstallments(Number(e.target.value))}
+                            className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            {Array.from({ length: 36 }, (_, i) => i + 1).map(num => (
+                                <option key={num} value={num}>
+                                    {num === 1 ? '1x (À vista)' : `${num}x`}
+                                </option>
+                            ))}
+                        </select>
+                        {installments > 1 && (
+                            <p className="text-sm text-muted-foreground">
+                                ⚠️ Alterar o número de parcelas irá recriar o lançamento com as novas parcelas
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
