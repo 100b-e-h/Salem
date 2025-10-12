@@ -138,8 +138,9 @@ export function NewTransactionDialog({
 
             onClose();
             onTransactionCreated();
-        } catch {
+        } catch (e) {
             alert('Erro ao criar lançamento. Tente novamente.');
+            console.error(e);
         } finally {
             setIsSubmitting(false);
         }
@@ -294,7 +295,7 @@ export function NewTransactionDialog({
                                         {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
                                             <option key={num} value={num}>
                                                 {num}x {paymentType === 'installment' && amount > 0 &&
-                                                    `(R$ ${(amount / num).toFixed(2)} por parcela)`
+                                                    `(R$ ${(amount / num / 100).toFixed(2)} por parcela)`
                                                 }
                                             </option>
                                         ))}
