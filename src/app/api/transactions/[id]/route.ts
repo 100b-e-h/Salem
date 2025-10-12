@@ -24,9 +24,15 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { description, amount, date, category } = body;
+    const { description, amount, date, category, installments } = body;
 
-    if (!description && amount === undefined && !date && !category) {
+    if (
+      !description &&
+      amount === undefined &&
+      !date &&
+      !category &&
+      !installments
+    ) {
       return NextResponse.json(
         { error: "No fields to update" },
         { status: 400 }
@@ -51,6 +57,9 @@ export async function PATCH(
         ...(amount !== undefined ? { amount: Number(amount) } : {}),
         ...(date !== undefined ? { date } : {}),
         ...(category !== undefined ? { category } : {}),
+        ...(installments !== undefined
+          ? { installments: Number(installments) }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, id));
@@ -261,46 +270,106 @@ export async function DELETE(
       );
     }
 
-    // Se a transação tem cardId, precisamos atualizar a fatura
-    if (transaction.cardId) {
-      // Buscar a fatura correspondente
-      const transactionDate = new Date(transaction.date);
-      const month = transactionDate.getMonth() + 1;
-      const year = transactionDate.getFullYear();
+    // Se a transação é parcelada, buscar todas as parcelas relacionadas
+    let transactionsToDelete = [transaction];
 
-      const [invoice] = await db
+    if (transaction.installments && transaction.installments > 1) {
+      console.log("Deletando transação parcelada:", {
+        id: transaction.id,
+        description: transaction.description,
+        installments: transaction.installments,
+      });
+
+      // Buscar todas as transações com o mesmo número de parcelas e descrição base similar
+      // As parcelas são identificadas pela descrição que contém " (X/Y)" no final
+      let baseDescription = transaction.description;
+
+      // Remover o sufixo de parcela da descrição se existir (ex: " (1/12)")
+      const installmentPattern = / \(\d+\/\d+\)$/;
+      if (installmentPattern.test(baseDescription)) {
+        baseDescription = baseDescription.replace(installmentPattern, "");
+      }
+
+      console.log("Descrição base extraída:", baseDescription);
+
+      // Buscar todas as transações relacionadas a este lançamento parcelado
+      const relatedTransactions = await db
         .select()
-        .from(invoices)
+        .from(transactions)
         .where(
           and(
-            eq(invoices.cardId, transaction.cardId),
-            eq(invoices.month, month),
-            eq(invoices.year, year)
+            eq(transactions.userId, user.id),
+            ...(transaction.cardId ? [eq(transactions.cardId, transaction.cardId)] : []),
+            eq(transactions.installments, transaction.installments)
           )
         );
 
-      if (invoice) {
-        // Atualizar o valor da fatura subtraindo o valor da transação
-        const newTotal = Math.max(0, invoice.totalAmount - transaction.amount);
+      console.log(
+        "Transações relacionadas encontradas:",
+        relatedTransactions.length
+      );
 
-        if (newTotal === 0) {
-          // Se a fatura ficou zerada, deletar ela
-          await db.delete(invoices).where(eq(invoices.id, invoice.id));
-        } else {
-          // Caso contrário, atualizar o valor
-          await db
-            .update(invoices)
-            .set({
-              totalAmount: newTotal,
-              updatedAt: new Date(),
-            })
-            .where(eq(invoices.id, invoice.id));
+      // Filtrar apenas as transações que fazem parte do mesmo lançamento
+      // baseado na descrição base (sem o sufixo de parcela)
+      const sameLaunchTransactions = relatedTransactions.filter((tx) => {
+        let txBaseDescription = tx.description;
+        if (installmentPattern.test(txBaseDescription)) {
+          txBaseDescription = txBaseDescription.replace(installmentPattern, "");
+        }
+        return txBaseDescription === baseDescription;
+      });
+
+      console.log(
+        "Transações do mesmo lançamento:",
+        sameLaunchTransactions.length
+      );
+      transactionsToDelete = sameLaunchTransactions;
+    }
+
+    // Para cada transação a ser deletada, atualizar as faturas correspondentes
+    for (const tx of transactionsToDelete) {
+      if (tx.cardId) {
+        // Buscar a fatura correspondente
+        const transactionDate = new Date(tx.date);
+        const month = transactionDate.getMonth() + 1;
+        const year = transactionDate.getFullYear();
+
+        const [invoice] = await db
+          .select()
+          .from(invoices)
+          .where(
+            and(
+              eq(invoices.cardId, tx.cardId),
+              eq(invoices.month, month),
+              eq(invoices.year, year)
+            )
+          );
+
+        if (invoice) {
+          // Atualizar o valor da fatura subtraindo o valor da transação
+          const newTotal = Math.max(0, invoice.totalAmount - tx.amount);
+
+          if (newTotal === 0) {
+            // Se a fatura ficou zerada, deletar ela
+            await db.delete(invoices).where(eq(invoices.id, invoice.id));
+          } else {
+            // Caso contrário, atualizar o valor
+            await db
+              .update(invoices)
+              .set({
+                totalAmount: newTotal,
+                updatedAt: new Date(),
+              })
+              .where(eq(invoices.id, invoice.id));
+          }
         }
       }
     }
 
-    // Deletar a transação
-    await db.delete(transactions).where(eq(transactions.id, transactionId));
+    // Deletar todas as transações relacionadas
+    for (const tx of transactionsToDelete) {
+      await db.delete(transactions).where(eq(transactions.id, tx.id));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
