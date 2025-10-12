@@ -20,9 +20,6 @@ const navItems: NavItem[] = [
     { name: 'Contas', href: '/accounts' },
     { name: 'Cartões', href: '/cards' },
     { name: 'Faturas', href: '/invoices' },
-    { name: 'Parceladas', href: '/installments' },
-    { name: 'Assinaturas', href: '/subscriptions' },
-    { name: 'Recorrentes', href: '/recurrences' },
 ];
 
 export function Header() {
