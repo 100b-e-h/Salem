@@ -64,19 +64,17 @@ export const createCardSchema = z.object({
   dueDay: z.number().int().min(1).max(31, "Dia de vencimento inválido"),
 });
 
-// Schema para criar transação (temporariamente simplificado)
 export const createTransactionSchema = z.object({
   amount: z.number().positive("Valor deve ser positivo"),
   description: z.string().min(1, "Descrição é obrigatória"),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
-  category: z.string().nullable().optional(),
+  category: z.string().min(1, "Categoria é obrigatória"),
   installments: z.number().int().min(1).optional().default(1),
   sharedWith: z.any().optional(),
 });
 
-// Schema para criar fatura
 export const createInvoiceSchema = z.object({
   cardId: uuidSchema,
   month: z.number().int().min(1).max(12, "Mês inválido"),
@@ -88,7 +86,6 @@ export const createInvoiceSchema = z.object({
   status: z.enum(["open", "paid", "overdue"]).optional().default("open"),
 });
 
-// Utilitários de sanitização
 export function sanitizeString(str: string): string {
   return str.trim().replace(/[<>]/g, "");
 }
@@ -101,7 +98,6 @@ export function sanitizeNumber(num: unknown): number {
   return parsed;
 }
 
-// Wrapper para validação de APIs
 export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown): T {
   try {
     return schema.parse(data);
