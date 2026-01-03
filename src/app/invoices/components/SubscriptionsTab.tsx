@@ -28,9 +28,9 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
         const res = await fetch(`/api/cards/${selectedCard}/transactions`);
         if (res.ok) {
             const all: Transaction[] = await res.json();
-            // Filtrar apenas transações que são assinaturas
+            // Filtrar apenas transações que são assinaturas (finance_type = 'subscription')
             setSubscriptions(
-                all.filter((t) => t.tags.includes('assinatura'))
+                all.filter((t) => t.financeType === 'subscription')
             );
         } else {
             setSubscriptions([]);
@@ -89,12 +89,12 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
 
     useEffect(() => {
         if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].id);
+            setSelectedCard(cards[0].cardId);
         }
     }, [cards, selectedCard]);
 
     const getSelectedCard = () => {
-        return cards.find(card => card.id === selectedCard);
+        return cards.find(card => card.cardId === selectedCard);
     };
 
     const totalSubscriptionsValue = subscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
@@ -162,7 +162,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                     className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                                 >
                                     {cards.map((card) => (
-                                        <option key={card.id} value={card.id}>
+                                        <option key={card.cardId} value={card.cardId}>
                                             {card.alias} - {card.brand}
                                         </option>
                                     ))}
