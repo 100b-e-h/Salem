@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useAuth } from '@/components/AuthProvider';
 import { Card as CardType } from '@/types';
+import { Plus, Trash2, Users } from 'lucide-react';
 
 const CATEGORIES = [
     { value: 'alimentacao', label: '🍔 Alimentação' },
@@ -40,6 +41,155 @@ interface SharedUser {
     paid: boolean;
 }
 
+function SharedUsersDialog({ open, onClose, sharedUsers, onUpdate, currentUserId }: {
+    open: boolean;
+    onClose: () => void;
+    sharedUsers: SharedUser[];
+    onUpdate: (users: SharedUser[]) => void;
+    currentUserId?: string;
+}) {
+    const [emailSearch, setEmailSearch] = useState('');
+    const [searchResults, setSearchResults] = useState<Array<{ id: string; email: string; name?: string }>>([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    const searchUsers = async (email: string) => {
+        if (!email || email.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const response = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+            if (response.ok) {
+                const data = await response.json();
+                const filtered = data.filter((u: { id: string; email: string }) =>
+                    u.id !== currentUserId && !sharedUsers.find(su => su.id === u.id)
+                );
+                setSearchResults(filtered);
+            }
+        } catch {
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const addSharedUser = (userToAdd: { id: string; email: string; name?: string }) => {
+        onUpdate([...sharedUsers, { id: userToAdd.id, email: userToAdd.email, paid: false }]);
+        setEmailSearch('');
+        setSearchResults([]);
+    };
+
+    const removeSharedUser = (userId: string) => {
+        onUpdate(sharedUsers.filter(u => u.id !== userId));
+    };
+
+    const toggleUserPaid = (userId: string) => {
+        onUpdate(sharedUsers.map(u =>
+            u.id === userId ? { ...u, paid: !u.paid } : u
+        ));
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-md bg-card border-border shadow-lg z-[60]">
+                <DialogHeader>
+                    <DialogTitle>👥 Compartilhar Lançamento</DialogTitle>
+                    <DialogDescription>
+                        Adicione pessoas para dividir este gasto.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="relative">
+                        <Input
+                            type="text"
+                            placeholder="Buscar por email..."
+                            value={emailSearch}
+                            onChange={e => {
+                                const value = e.target.value;
+                                setEmailSearch(value);
+                                if (value.length >= 3) {
+                                    searchUsers(value);
+                                } else {
+                                    setSearchResults([]);
+                                }
+                            }}
+                            className="bg-background border-border text-foreground"
+                        />
+                        {isSearching && (
+                            <div className="absolute right-3 top-3">
+                                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                            </div>
+                        )}
+                        {searchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                {searchResults.map(result => (
+                                    <button
+                                        key={result.id}
+                                        type="button"
+                                        onClick={() => addSharedUser(result)}
+                                        className="w-full px-4 py-2 text-left hover:bg-muted transition-colors text-foreground"
+                                    >
+                                        <div className="font-medium">{result.email}</div>
+                                        {result.name && (
+                                            <div className="text-xs text-muted-foreground">{result.name}</div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {sharedUsers.length > 0 ? (
+                        <div className="space-y-2">
+                            {sharedUsers.map(sharedUser => (
+                                <div
+                                    key={sharedUser.id}
+                                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                                >
+                                    <div className="flex items-center space-x-2 flex-1">
+                                        <span className="text-sm text-foreground font-medium">
+                                            {sharedUser.email}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleUserPaid(sharedUser.id)}
+                                            className={`text-xs px-2 py-1 rounded transition-colors ${sharedUser.paid
+                                                ? 'bg-green-500/20 text-green-700 dark:text-green-400'
+                                                : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                                                }`}
+                                        >
+                                            {sharedUser.paid ? '✅ Pago' : '⏳ Pendente'}
+                                        </button>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSharedUser(sharedUser.id)}
+                                        className="text-red-500 hover:text-red-700 transition-colors ml-2"
+                                        title="Remover"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                            Ninguém adicionado ainda.
+                        </p>
+                    )}
+
+                    <div className="flex justify-end">
+                        <Button onClick={onClose}>Concluído</Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export function NewTransactionDialog({
     open,
     onClose,
@@ -60,7 +210,108 @@ export function NewTransactionDialog({
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
     const [installments, setInstallments] = useState(1);
-    const [importMode, setImportMode] = useState<'manual' | 'csv'>('manual');
+    const [mode, setMode] = useState<'single' | 'multiple' | 'csv'>('single');
+    const [targetMonth, setTargetMonth] = useState(selectedMonth);
+    const [sharingRowId, setSharingRowId] = useState<string | null>(null);
+    const [multipleTransactions, setMultipleTransactions] = useState<Array<{
+        id: string;
+        description: string;
+        amount: number;
+        date: string;
+        category: string;
+        targetMonth: string;
+        installments: number;
+        sharedWith: SharedUser[];
+    }>>([]);
+
+    React.useEffect(() => {
+        if (open) {
+            setTargetMonth(selectedMonth);
+            if (mode === 'multiple' && multipleTransactions.length === 0) {
+                handleAddRow();
+            }
+        }
+    }, [open, selectedMonth, mode]);
+
+    const handleAddRow = () => {
+        setMultipleTransactions(prev => [...prev, {
+            id: crypto.randomUUID(),
+            description: '',
+            amount: 0,
+            date: new Date().toISOString().split('T')[0],
+            category: '',
+            targetMonth: selectedMonth,
+            installments: 1,
+            sharedWith: []
+        }]);
+    };
+
+    const handleRemoveRow = (id: string) => {
+        setMultipleTransactions(prev => prev.filter(t => t.id !== id));
+    };
+
+    const handleRowChange = (id: string, field: string, value: any) => {
+        setMultipleTransactions(prev => prev.map(t => 
+            t.id === id ? { ...t, [field]: value } : t
+        ));
+    };
+
+    const handleSaveMultiple = async () => {
+        if (!user || isSubmitting) return;
+        
+        const invalid = multipleTransactions.find(t => !t.description || t.amount <= 0 || !t.category);
+        if (invalid) {
+            alert('Preencha todos os campos obrigatórios (Descrição, Valor, Categoria) em todas as linhas.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            for (const t of multipleTransactions) {
+                const [year, month] = t.targetMonth.split('-').map(Number);
+                const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: t.description,
+                        amount: Math.abs(t.amount),
+                        date: t.date,
+                        category: t.category,
+                        installments: t.installments,
+                        invoiceMonth: month,
+                        invoiceYear: year,
+                        sharedWith: t.sharedWith.length > 0 ? t.sharedWith : null,
+                    }),
+                });
+                if (!response.ok) throw new Error('Failed to create transaction');
+            }
+            
+            setMultipleTransactions([]);
+            setMode('single');
+            onClose();
+            onTransactionCreated();
+        } catch (e) {
+            alert('Erro ao salvar lançamentos. Alguns podem ter sido salvos.');
+            console.error(e);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const getMonthOptions = React.useMemo(() => {
+        const options = [];
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        
+        for (let i = 0; i < 15; i++) {
+            const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+            const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+            options.push({ value, label: formattedLabel });
+        }
+        return options;
+    }, []);
 
     // Debounced user search
     const searchUsers = useCallback(async (email: string) => {
@@ -114,7 +365,8 @@ export function NewTransactionDialog({
 
         setIsSubmitting(true);
         try {
-            const response = await fetch(`/api/cards/${card.id}/transactions`, {
+            const [year, month] = targetMonth.split('-').map(Number);
+            const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -126,6 +378,8 @@ export function NewTransactionDialog({
                     category,
                     installments: paymentType === 'installment' ? installments : 1,
                     sharedWith: sharedUsers.length > 0 ? sharedUsers : null,
+                    invoiceMonth: month,
+                    invoiceYear: year,
                 }),
             });
 
@@ -160,9 +414,9 @@ export function NewTransactionDialog({
         try {
             const formData = new FormData();
             formData.append('file', csvFile);
-            formData.append('cardId', card.id);
+            formData.append('cardId', card.cardId);
 
-            const response = await fetch(`/api/cards/${card.id}/transactions/import`, {
+            const response = await fetch(`/api/cards/${card.cardId}/transactions/import`, {
                 method: 'POST',
                 body: formData,
             });
@@ -183,37 +437,44 @@ export function NewTransactionDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-2xl bg-card border-border shadow-lg">
+            <DialogContent className={`bg-card border-border shadow-lg transition-all duration-300 ${mode === 'multiple' ? 'sm:max-w-6xl' : 'sm:max-w-2xl'}`}>
                 <DialogHeader>
                     <DialogTitle className="text-xl font-semibold text-foreground">
                         💳 Novo Lançamento
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground mt-2">
-                        Cartão: <span className="font-semibold text-foreground">{card.alias}</span> •
-                        Competência: <span className="font-semibold text-foreground">{selectedMonth}</span>
+                        Cartão: <span className="font-semibold text-foreground">{card.alias}</span>
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex gap-2 mb-4">
                     <Button
                         type="button"
-                        variant={importMode === 'manual' ? 'default' : 'outline'}
-                        onClick={() => setImportMode('manual')}
+                        variant={mode === 'single' ? 'default' : 'outline'}
+                        onClick={() => setMode('single')}
                         className="flex-1"
                     >
-                        ✏️ Manual
+                        ✏️ Individual
                     </Button>
                     <Button
                         type="button"
-                        variant={importMode === 'csv' ? 'default' : 'outline'}
-                        onClick={() => setImportMode('csv')}
+                        variant={mode === 'multiple' ? 'default' : 'outline'}
+                        onClick={() => setMode('multiple')}
+                        className="flex-1"
+                    >
+                        📚 Múltiplos
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={mode === 'csv' ? 'default' : 'outline'}
+                        onClick={() => setMode('csv')}
                         className="flex-1"
                     >
                         📄 Importar CSV
                     </Button>
                 </div>
 
-                {importMode === 'manual' ? (
+                {mode === 'single' && (
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="description" className="text-foreground font-medium">
@@ -258,6 +519,24 @@ export function NewTransactionDialog({
                                     required
                                 />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="targetMonth" className="text-foreground font-medium">
+                                Competência da Fatura
+                            </Label>
+                            <select
+                                id="targetMonth"
+                                value={targetMonth}
+                                onChange={(e) => setTargetMonth(e.target.value)}
+                                className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                {getMonthOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-3">
@@ -433,7 +712,153 @@ export function NewTransactionDialog({
                             </Button>
                         </div>
                     </form>
-                ) : (
+                )}
+
+                {mode === 'multiple' && (
+                    <div className="space-y-4">
+                        <div className="max-h-[60vh] overflow-y-auto pr-2">
+                            <table className="w-full border-collapse">
+                                <thead className="sticky top-0 bg-card z-10">
+                                    <tr>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[25%]">Descrição</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Valor</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Data</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[20%]">Categoria</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Competência</th>
+                                        <th className="text-center p-2 text-sm font-medium text-muted-foreground w-[5%]">👥</th>
+                                        <th className="w-[5%]"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="space-y-2">
+                                    {multipleTransactions.map((row) => (
+                                        <tr key={row.id} className="group hover:bg-muted/30">
+                                            <td className="p-1">
+                                                <Input
+                                                    value={row.description}
+                                                    onChange={(e) => handleRowChange(row.id, 'description', e.target.value)}
+                                                    placeholder="Descrição"
+                                                    className="h-9"
+                                                />
+                                            </td>
+                                            <td className="p-1">
+                                                <MoneyInput
+                                                    value={row.amount === 0 ? '' : (row.amount / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    onValueChange={(val) => handleRowChange(row.id, 'amount', Math.abs(val))}
+                                                    allowNegative={false}
+                                                    className="h-9"
+                                                />
+                                            </td>
+                                            <td className="p-1">
+                                                <Input
+                                                    type="date"
+                                                    value={row.date}
+                                                    onChange={(e) => handleRowChange(row.id, 'date', e.target.value)}
+                                                    className="h-9"
+                                                />
+                                            </td>
+                                            <td className="p-1">
+                                                <select
+                                                    value={row.category}
+                                                    onChange={(e) => handleRowChange(row.id, 'category', e.target.value)}
+                                                    className="w-full h-9 px-2 border border-border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {CATEGORIES.map(cat => (
+                                                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="p-1">
+                                                <select
+                                                    value={row.targetMonth}
+                                                    onChange={(e) => handleRowChange(row.id, 'targetMonth', e.target.value)}
+                                                    className="w-full h-9 px-2 border border-border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                >
+                                                    {getMonthOptions.map((option) => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="p-1 text-center">
+                                                <Button
+                                                    type="button"
+                                                    variant={row.sharedWith.length > 0 ? "default" : "ghost"}
+                                                    size="sm"
+                                                    onClick={() => setSharingRowId(row.id)}
+                                                    className={`h-9 w-9 p-0 ${row.sharedWith.length > 0 ? '' : 'text-muted-foreground hover:text-foreground'}`}
+                                                    title={row.sharedWith.length > 0 ? `${row.sharedWith.length} pessoa(s)` : "Compartilhar"}
+                                                >
+                                                    <Users className="h-4 w-4" />
+                                                    {row.sharedWith.length > 0 && (
+                                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                                                            {row.sharedWith.length}
+                                                        </span>
+                                                    )}
+                                                </Button>
+                                            </td>
+                                            <td className="p-1 text-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveRow(row.id)}
+                                                    className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between pt-4 border-t border-border">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleAddRow}
+                                className="border-dashed border-2"
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Adicionar Linha
+                            </Button>
+
+                            <div className="flex space-x-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={onClose}
+                                    disabled={isSubmitting}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={handleSaveMultiple}
+                                    disabled={isSubmitting || multipleTransactions.length === 0}
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                >
+                                    {isSubmitting ? 'Salvando...' : `Salvar ${multipleTransactions.length} Lançamentos`}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {sharingRowId && (
+                    <SharedUsersDialog
+                        open={!!sharingRowId}
+                        onClose={() => setSharingRowId(null)}
+                        sharedUsers={multipleTransactions.find(t => t.id === sharingRowId)?.sharedWith || []}
+                        onUpdate={(users) => handleRowChange(sharingRowId, 'sharedWith', users)}
+                        currentUserId={user?.id}
+                    />
+                )}
+
+                {mode === 'csv' && (
                     <form onSubmit={handleCsvImport} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="csv" className="text-foreground font-medium">
