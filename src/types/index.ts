@@ -10,7 +10,7 @@ export type {
 } from "@/lib/schema";
 
 export interface Account {
-  id: string;
+  account_id: string;
   name: string;
   type: "corrente" | "poupanca" | "carteira" | "corretora";
   balance: number;
@@ -20,7 +20,7 @@ export interface Account {
 }
 
 export interface Card {
-  id: string;
+  cardId: string;
   alias: string;
   brand: string;
   totalLimit: number;
@@ -34,7 +34,7 @@ export interface Card {
 export type InvoiceStatus = "open" | "paid" | "overdue";
 
 export interface Invoice {
-  id: string;
+  invoiceId: string;
   cardId: string;
   month: number;
   year: number;
@@ -47,7 +47,7 @@ export interface Invoice {
 }
 
 export interface AccountDisplay {
-  id: string;
+  account_id: string;
   name: string;
   type: "corrente" | "poupanca" | "carteira" | "corretora";
   balance: CentavosValue;
@@ -58,7 +58,7 @@ export interface AccountDisplay {
 }
 
 export interface CardDisplay {
-  id: string;
+  account_id: string;
   alias: string;
   brand: string;
   totalLimit: CentavosValue;
@@ -70,7 +70,7 @@ export interface CardDisplay {
 }
 
 export interface InvoiceDisplay {
-  id: string;
+  invoiceId: string;
   cardId: string;
   month: number;
   year: number;
@@ -85,7 +85,7 @@ export interface InvoiceDisplay {
 }
 
 export interface Category {
-  id: string;
+  category_id: string;
   name: string;
   type: "despesa" | "receita";
   color?: string;
@@ -95,9 +95,10 @@ export interface Category {
 }
 
 export type TransactionType = "despesa" | "receita" | "transferencia";
+export type FinanceType = "installment" | "upfront" | "subscription";
 
 export interface Transaction {
-  id: string;
+  transactionId: string;
   date: Date;
   sourceAccountId?: string;
   destinationAccountId?: string;
@@ -113,6 +114,7 @@ export interface Transaction {
   installments?: number;
   currentInstallment?: number;
   parentTransactionId?: string;
+  financeType?: FinanceType;
   sharedWith?: Array<{ id: string; email: string; paid: boolean }>;
   createdAt: Date;
   updatedAt: Date;
@@ -156,7 +158,8 @@ export interface Subscription extends Recurrence {
 export type InstallmentStatus = "prevista" | "lancada" | "quitada";
 
 export interface Installment {
-  id: string;
+  installmentId: string;
+  user_id: string;
   cardId: string;
   purchaseDate: Date;
   totalAmount: number;
