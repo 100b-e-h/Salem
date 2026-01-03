@@ -70,9 +70,12 @@ export const createTransactionSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
-  category: z.string().min(1, "Categoria é obrigatória"),
+  category: z.string().nullable().optional(),
   installments: z.number().int().min(1).optional().default(1),
   sharedWith: z.any().optional(),
+  invoiceMonth: z.number().int().min(1).max(12).optional(),
+  invoiceYear: z.number().int().min(2000).max(2100).optional(),
+  financeType: z.enum(["installment", "upfront", "subscription"]).default("upfront"),
 });
 
 export const createInvoiceSchema = z.object({
