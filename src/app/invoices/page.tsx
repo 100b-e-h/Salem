@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/InvoiceTabs';
 import { GeneralInvoicesTab } from './components/GeneralInvoicesTab';
 import { SubscriptionsTab } from './components/SubscriptionsTab';
 import { InstallmentsTab } from './components/InstallmentsTab';
+import { Button } from '@/components/ui/Button';
+import { NewSubscriptionDialog } from './components/NewSubscriptionDialog';
 
 export default function InvoicesPage() {
     const { user } = useAuth();
+    const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
 
     if (!user) {
         return (
@@ -23,12 +26,32 @@ export default function InvoicesPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-foreground">💳 Gestão de Faturas</h1>
-                <p className="text-muted-foreground mt-2">
-                    Visualize e gerencie faturas, assinaturas e compras parceladas
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground">💳 Gestão de Faturas</h1>
+                    <p className="text-muted-foreground mt-2">
+                        Visualize e gerencie faturas, assinaturas e compras parceladas
+                    </p>
+                </div>
+                <div className="mt-4 sm:mt-0">
+                    <Button 
+                        onClick={() => setSubscriptionDialogOpen(true)}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                    >
+                        <span className="mr-2">+</span>
+                        Nova Assinatura
+                    </Button>
+                </div>
             </div>
+
+            <NewSubscriptionDialog
+                open={subscriptionDialogOpen}
+                onClose={() => setSubscriptionDialogOpen(false)}
+                onSubscriptionCreated={() => {
+                    // Recarregar a página para atualizar os dados em todas as abas
+                    window.location.reload();
+                }}
+            />
 
             <Tabs defaultValue="invoices">
                 <TabsList>
