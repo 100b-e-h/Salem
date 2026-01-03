@@ -1,10 +1,13 @@
 import { eq, and, desc, or, gte, gt } from "drizzle-orm";
 import { db } from "./drizzle";
 import {
-  accounts,
-  cards,
-  invoices,
-  transactions,
+  accountsInSalem as accounts,
+  cardsInSalem as cards,
+  invoicesInSalem as invoices,
+  transactionsInSalem as transactions,
+} from "./schema";
+
+import {
   type Account,
   type Card,
   type Invoice,
@@ -12,7 +15,8 @@ import {
   type NewCard,
   type NewInvoice,
   type NewTransaction,
-} from "./schema";
+} from "./db_types";
+
 import { reaisToCentavos, centavosToReais } from "@/utils/money";
 
 class DrizzleDatabase {
