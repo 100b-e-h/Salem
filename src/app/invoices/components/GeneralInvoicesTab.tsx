@@ -32,23 +32,31 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
 
     const fetchTransactions = useCallback(async () => {
         if (!user || !selectedCard || !selectedMonth) return;
-        const [year, month] = selectedMonth.split('-');
+        
+        // Buscar a fatura correspondente ao mês selecionado
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const currentInvoice = invoices.find(invoice =>
+            invoice.cardId === selectedCard &&
+            invoice.year === year &&
+            invoice.month === month
+        );
+
+        if (!currentInvoice) {
+            setTransactions([]);
+            return;
+        }
+
         const res = await fetch(`/api/cards/${selectedCard}/transactions`);
         if (res.ok) {
             const all: Transaction[] = await res.json();
-            // Na aba de faturas gerais, mostrar TODOS os lançamentos da competência
+            // Filtrar transações que pertencem a esta fatura usando invoiceId
             setTransactions(
-                all.filter((t) => {
-                    const ts = typeof t.date === 'string' ? Date.parse(t.date) : (t.date ? new Date(t.date).getTime() : NaN);
-                    const d = new Date(ts);
-                    const isInSelectedMonth = d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(month);
-                    return isInSelectedMonth;
-                })
+                all.filter((t) => t.invoiceId === currentInvoice.invoiceId)
             );
         } else {
             setTransactions([]);
         }
-    }, [user, selectedCard, selectedMonth]);
+    }, [user, selectedCard, selectedMonth, invoices]);
 
     useEffect(() => {
         fetchTransactions();
@@ -65,7 +73,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
         }
 
         try {
-            const response = await fetch(`/api/transactions/${tx.id}`, {
+            const response = await fetch(`/api/transactions/${tx.transactionId}`, {
                 method: 'DELETE',
             });
 
@@ -114,7 +122,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
 
     useEffect(() => {
         if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].id);
+            setSelectedCard(cards[0].cardId);
         }
     }, [cards, selectedCard]);
 
@@ -126,7 +134,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
     }, [selectedMonth]);
 
     const getSelectedCard = () => {
-        return cards.find(card => card.id === selectedCard);
+        return cards.find(card => card.cardId === selectedCard);
     };
 
     const getInvoiceForMonth = (cardId: string, yearMonth: string) => {
@@ -332,7 +340,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                         className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                                     >
                                         {cards.map((card) => (
-                                            <option key={card.id} value={card.id}>
+                                            <option key={card.cardId} value={card.cardId}>
                                                 {card.alias} - {card.brand}
                                             </option>
                                         ))}
@@ -386,7 +394,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                                     Valor Total da Fatura
                                                 </h3>
                                                 <CurrencyDisplay
-                                                    amount={currentInvoice.totalAmount}
+                                                    amount={transactions.reduce((sum, t) => sum + (t.amount || 0), 0)}
                                                     size="xl"
                                                     variant="negative"
                                                 />
@@ -418,7 +426,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                         {currentInvoice.status === 'open' && (
                                             <div className="flex justify-center">
                                                 <Button
-                                                    onClick={() => markInvoiceAsPaid(currentInvoice.id)}
+                                                    onClick={() => markInvoiceAsPaid(currentInvoice.invoiceId)}
                                                     className="bg-green-600 text-white hover:bg-green-700"
                                                 >
                                                     ✅ Marcar como Paga
@@ -429,7 +437,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                         {currentInvoice.status === 'paid' && (
                                             <div className="flex justify-center">
                                                 <Button
-                                                    onClick={() => reopenInvoice(currentInvoice.id)}
+                                                    onClick={() => reopenInvoice(currentInvoice.invoiceId)}
                                                     variant="outline"
                                                     className="border-orange-500 text-orange-600 hover:bg-orange-50"
                                                 >
