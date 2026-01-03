@@ -28,9 +28,9 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
         const res = await fetch(`/api/cards/${selectedCard}/transactions`);
         if (res.ok) {
             const all: Transaction[] = await res.json();
-            // Filtrar apenas transações que são parceladas
+            // Filtrar apenas transações que têm finance_type = 'installment'
             setInstallments(
-                all.filter((t) => t.installments && t.installments > 1)
+                all.filter((t) => t.financeType === 'installment')
             );
         } else {
             setInstallments([]);
@@ -49,7 +49,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
         }
 
         try {
-            const response = await fetch(`/api/transactions/${tx.id}`, {
+            const response = await fetch(`/api/transactions/${tx.transactionId}`, {
                 method: 'DELETE',
             });
 
@@ -91,23 +91,13 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
 
     useEffect(() => {
         if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].id);
+            setSelectedCard(cards[0].cardId);
         }
     }, [cards, selectedCard]);
 
     const getSelectedCard = () => {
-        return cards.find(card => card.id === selectedCard);
+        return cards.find(card => card.cardId === selectedCard);
     };
-
-    // Agrupar parcelas por transação pai
-    const groupedInstallments = installments.reduce((groups, transaction) => {
-        const parentId = transaction.parentTransactionId || transaction.id;
-        if (!groups[parentId]) {
-            groups[parentId] = [];
-        }
-        groups[parentId].push(transaction);
-        return groups;
-    }, {} as Record<string, Transaction[]>);
 
     const totalInstallmentsValue = installments.reduce((sum, installment) => sum + installment.amount, 0);
 
@@ -174,7 +164,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                     className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                                 >
                                     {cards.map((card) => (
-                                        <option key={card.id} value={card.id}>
+                                        <option key={card.cardId} value={card.cardId}>
                                             {card.alias} - {card.brand}
                                         </option>
                                     ))}
@@ -201,7 +191,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
                                             <div className="text-3xl mb-3">💰</div>
                                             <h3 className="text-sm font-medium text-muted-foreground mb-2">
@@ -217,16 +207,6 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                         <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
                                             <div className="text-3xl mb-3">📊</div>
                                             <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                                                Compras Parceladas
-                                            </h3>
-                                            <div className="text-xl font-semibold text-foreground">
-                                                {Object.keys(groupedInstallments).length}
-                                            </div>
-                                        </div>
-
-                                        <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
-                                            <div className="text-3xl mb-3">📋</div>
-                                            <h3 className="text-sm font-medium text-muted-foreground mb-2">
                                                 Total de Parcelas
                                             </h3>
                                             <div className="text-xl font-semibold text-foreground">
@@ -241,10 +221,10 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                 <div className="p-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-lg font-semibold text-foreground">
-                                            💳 Compras Parceladas
+                                            💳 Detalhamento de Parcelas
                                         </h3>
                                         <Badge variant="secondary">
-                                            {Object.keys(groupedInstallments).length} compra{Object.keys(groupedInstallments).length !== 1 ? 's' : ''}
+                                            {installments.length} parcela{installments.length !== 1 ? 's' : ''}
                                         </Badge>
                                     </div>
 
@@ -259,53 +239,11 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {Object.entries(groupedInstallments).map(([parentId, transactions]) => {
-                                                const mainTransaction = transactions[0];
-                                                const installmentInfo = transactions.length > 1
-                                                    ? `${transactions.length}x de `
-                                                    : `${mainTransaction.currentInstallment || 1}/${mainTransaction.installments} - `;
-
-                                                return (
-                                                    <Card key={parentId} className="border border-border">
-                                                        <div className="p-4">
-                                                            <div className="flex items-center justify-between mb-3">
-                                                                <div>
-                                                                    <h4 className="font-semibold text-foreground">
-                                                                        {mainTransaction.description}
-                                                                    </h4>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {installmentInfo}
-                                                                        <CurrencyDisplay amount={mainTransaction.amount} />
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex space-x-2">
-                                                                    <Badge variant="outline">
-                                                                        {mainTransaction.installments}x
-                                                                    </Badge>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => handleDeleteInstallment(mainTransaction)}
-                                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                    >
-                                                                        🗑️ Deletar
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="border-t border-border pt-3">
-                                                                <TransactionsTable
-                                                                    transactions={transactions}
-                                                                    onEdit={() => { }} // Placeholder - parcelas podem não ser editáveis
-                                                                    onDelete={handleDeleteInstallment}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </Card>
-                                                );
-                                            })}
-                                        </div>
+                                        <TransactionsTable
+                                            transactions={installments}
+                                            onEdit={() => {}}
+                                            onDelete={handleDeleteInstallment}
+                                        />
                                     )}
                                 </div>
                             </Card>
