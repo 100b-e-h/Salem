@@ -100,7 +100,7 @@ export interface Database {
       invoices: {
         Row: {
           id: string;
-          card_id: string;
+          cardId: string;
           user_id: string;
           year_month: string;
           status: "prevista" | "fechada" | "paga";
@@ -112,7 +112,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          card_id: string;
+          cardId: string;
           user_id: string;
           year_month: string;
           status?: "prevista" | "fechada" | "paga";
@@ -124,7 +124,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          card_id?: string;
+          cardId?: string;
           user_id?: string;
           year_month?: string;
           status?: "prevista" | "fechada" | "paga";
@@ -136,8 +136,8 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "invoices_card_id_fkey";
-            columns: ["card_id"];
+            foreignKeyName: "invoices_cardId_fkey";
+            columns: ["cardId"];
             isOneToOne: false;
             referencedRelation: "cards";
             referencedColumns: ["id"];
