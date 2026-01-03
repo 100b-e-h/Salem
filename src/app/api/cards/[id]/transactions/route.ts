@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/drizzle";
-import { transactions, cards, invoices } from "@/lib/schema";
+import { transactionsInSalem as transactions, cardsInSalem as cards, invoicesInSalem as invoices } from "@/lib/schema";
 import { createClient } from "@/lib/supabase/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { calculateInvoicePeriod, formatDateForDb } from "@/utils/invoice";
 import {
   validateRequest,
@@ -105,7 +105,7 @@ export async function POST(
     const [card] = await db
       .select()
       .from(cards)
-      .where(and(eq(cards.id, validCardId), eq(cards.userId, user.id)));
+      .where(and(eq(cards.cardId, validCardId), eq(cards.userId, user.id)));
 
     if (!card) {
       return NextResponse.json(
@@ -113,6 +113,25 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Helper para calcular datas da fatura
+    const getInvoiceDates = (month: number, year: number) => {
+      const invoiceMonthIndex = month - 1;
+      const closingDate = new Date(year, invoiceMonthIndex, card.closingDay);
+
+      let dueMonth = invoiceMonthIndex;
+      let dueYear = year;
+
+      if (card.dueDay < card.closingDay) {
+        dueMonth += 1;
+        if (dueMonth > 11) {
+            dueMonth = 0;
+            dueYear += 1;
+        }
+      }
+      const dueDate = new Date(dueYear, dueMonth, card.dueDay);
+      return { closingDate, dueDate };
+    };
 
     // Calcular qual fatura essa transação deve pertencer baseada na data de fechamento
     const transactionDate = new Date(validatedData.date);
@@ -137,18 +156,77 @@ export async function POST(
             : installmentAmount;
 
         // Calcular qual fatura essa parcela deve pertencer
-        const invoicePeriod = calculateInvoicePeriod(
-          installmentDate,
-          card.closingDay,
-          card.dueDay
-        );
+        let invoicePeriod;
+        if (validatedData.invoiceMonth && validatedData.invoiceYear) {
+            let targetMonth = validatedData.invoiceMonth + i;
+            let targetYear = validatedData.invoiceYear;
+
+            while (targetMonth > 12) {
+                targetMonth -= 12;
+                targetYear += 1;
+            }
+
+            const dates = getInvoiceDates(targetMonth, targetYear);
+            invoicePeriod = {
+                month: targetMonth,
+                year: targetYear,
+                closingDate: dates.closingDate,
+                dueDate: dates.dueDate
+            };
+        } else {
+            invoicePeriod = calculateInvoicePeriod(
+              installmentDate,
+              card.closingDay,
+              card.dueDay
+            );
+        }
+
+        // Buscar ou criar a fatura do período correto ANTES de criar a transação
+        let invoice = await db
+          .select()
+          .from(invoices)
+          .where(
+            and(
+              eq(invoices.cardId, validCardId),
+              eq(invoices.month, invoicePeriod.month),
+              eq(invoices.year, invoicePeriod.year)
+            )
+          )
+          .then(rows => rows[0]);
+
+        if (invoice) {
+          // Atualizar valor da fatura existente
+          await db
+            .update(invoices)
+            .set({
+              updatedAt: new Date().toISOString(),
+            })
+            .where(eq(invoices.invoiceId, invoice.invoiceId));
+        } else {
+          // Criar nova fatura
+          const [newInvoice] = await db.insert(invoices).values({
+            userId: user.id,
+            cardId: validCardId,
+            month: invoicePeriod.month,
+            year: invoicePeriod.year,
+            paidAmount: 0,
+            dueDate: formatDateForDb(invoicePeriod.dueDate),
+            closingDate: formatDateForDb(invoicePeriod.closingDate),
+            status: "open",
+          }).returning();
+          invoice = newInvoice;
+        }
+
+        if (!invoice) {
+          throw new Error(`Failed to create or find invoice for installment ${i + 1}`);
+        }
 
         const [newTransaction] = await db
           .insert(transactions)
           .values({
             userId: user.id,
             cardId: validCardId,
-            amount: Math.abs(currentAmount),
+            amount: Math.round(Math.abs(currentAmount)),
             description: `${validatedData.description} (${i + 1}/${
               validatedData.installments
             })`,
@@ -158,76 +236,41 @@ export async function POST(
             installments: validatedData.installments,
             currentInstallment: i + 1,
             sharedWith: validatedData.sharedWith || null,
+            financeType: "installment",
+            invoiceId: invoice.invoiceId,
           })
           .returning();
 
         createdTransactions.push(newTransaction);
-
-        // Buscar ou criar a fatura do período correto
-        const [invoice] = await db
-          .select()
-          .from(invoices)
-          .where(
-            and(
-              eq(invoices.cardId, validCardId),
-              eq(invoices.month, invoicePeriod.month),
-              eq(invoices.year, invoicePeriod.year)
-            )
-          );
-
-        if (invoice) {
-          // Atualizar valor da fatura existente
-          await db
-            .update(invoices)
-            .set({
-              totalAmount: invoice.totalAmount + Math.abs(currentAmount),
-              updatedAt: new Date(),
-            })
-            .where(eq(invoices.id, invoice.id));
-        } else {
-          // Criar nova fatura
-          await db.insert(invoices).values({
-            userId: user.id,
-            cardId: validCardId,
-            month: invoicePeriod.month,
-            year: invoicePeriod.year,
-            totalAmount: Math.abs(currentAmount),
-            paidAmount: 0,
-            dueDate: formatDateForDb(invoicePeriod.dueDate),
-            closingDate: formatDateForDb(invoicePeriod.closingDate),
-            status: "open",
-          });
-        }
       }
+
+      // Refresh materialized view after creating installment transactions
+      await db.execute(sql`REFRESH MATERIALIZED VIEW CONCURRENTLY salem.invoices_summary`);
+      await db.execute(sql`REFRESH MATERIALIZED VIEW CONCURRENTLY salem.installments_summary`);
 
       return NextResponse.json(createdTransactions, { status: 201 });
     }
 
-    // Lógica para transação à vista (original)
-    const invoicePeriod = calculateInvoicePeriod(
-      transactionDate,
-      card.closingDay,
-      card.dueDay
-    );
+    // Lógica para transação à vista
+    let invoicePeriod;
+    if (validatedData.invoiceMonth && validatedData.invoiceYear) {
+        const dates = getInvoiceDates(validatedData.invoiceMonth, validatedData.invoiceYear);
+        invoicePeriod = {
+            month: validatedData.invoiceMonth,
+            year: validatedData.invoiceYear,
+            closingDate: dates.closingDate,
+            dueDate: dates.dueDate
+        };
+    } else {
+        invoicePeriod = calculateInvoicePeriod(
+          transactionDate,
+          card.closingDay,
+          card.dueDay
+        );
+    }
 
-    const [newTransaction] = await db
-      .insert(transactions)
-      .values({
-        userId: user.id,
-        cardId: validCardId,
-        amount: Math.abs(validatedData.amount),
-        description: validatedData.description,
-        type: "expense",
-        date: validatedData.date,
-        category: validatedData.category || null,
-        installments: 1,
-        currentInstallment: 1,
-        sharedWith: validatedData.sharedWith || null,
-      })
-      .returning();
-
-    // Buscar ou criar a fatura do período correto
-    const [invoice] = await db
+    // Buscar ou criar a fatura do período correto ANTES de criar a transação
+    let invoice = await db
       .select()
       .from(invoices)
       .where(
@@ -236,30 +279,114 @@ export async function POST(
           eq(invoices.month, invoicePeriod.month),
           eq(invoices.year, invoicePeriod.year)
         )
-      );
+      )
+      .then(rows => rows[0]);
 
     if (invoice) {
       await db
         .update(invoices)
         .set({
-          totalAmount: invoice.totalAmount + Math.abs(validatedData.amount),
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
-        .where(eq(invoices.id, invoice.id));
+        .where(eq(invoices.invoiceId, invoice.invoiceId));
     } else {
       const newInvoiceData = {
         userId: user.id,
         cardId: validCardId,
         month: invoicePeriod.month,
         year: invoicePeriod.year,
-        totalAmount: Math.abs(validatedData.amount),
         paidAmount: 0,
         dueDate: formatDateForDb(invoicePeriod.dueDate),
         closingDate: formatDateForDb(invoicePeriod.closingDate),
         status: "open" as const,
       };
 
-      await db.insert(invoices).values(newInvoiceData);
+      const [newInvoice] = await db.insert(invoices).values(newInvoiceData).returning();
+      invoice = newInvoice;
+    }
+
+    if (!invoice) {
+      throw new Error("Failed to create or find invoice");
+    }
+
+    const [newTransaction] = await db
+      .insert(transactions)
+      .values({
+        userId: user.id,
+        cardId: validCardId,
+        amount: Math.round(Math.abs(validatedData.amount)),
+        description: validatedData.description,
+        type: "expense",
+        date: validatedData.date,
+        category: validatedData.category || null,
+        installments: 1,
+        currentInstallment: 1,
+        sharedWith: validatedData.sharedWith || null,
+        financeType: validatedData.financeType || "upfront", // Use financeType from request or default to upfront
+        invoiceId: invoice.invoiceId,
+      })
+      .returning();
+
+    // Determine which materialized view to refresh based on finance type
+    const financeTypeToRefresh = validatedData.financeType || "upfront";
+    
+    // Refresh appropriate materialized view after creating transaction
+    try {
+      if (financeTypeToRefresh === 'subscription') {
+        await db.execute(sql`REFRESH MATERIALIZED VIEW CONCURRENTLY salem.subscriptions_summary`);
+      } else {
+        await db.execute(sql`REFRESH MATERIALIZED VIEW CONCURRENTLY salem.invoices_summary`);
+      }
+    } catch (viewError) {
+      console.error('Failed to refresh materialized view:', viewError);
+      // Fallback: Try to create the view if it doesn't exist
+      try {
+        if (financeTypeToRefresh === 'subscription') {
+          await db.execute(sql`
+            CREATE MATERIALIZED VIEW IF NOT EXISTS salem.subscriptions_summary AS
+            SELECT 
+              t.transaction_id,
+              t.user_id,
+              t.card_id,
+              t.description,
+              t.amount,
+              t.category,
+              t.date,
+              t.created_at,
+              t.updated_at
+            FROM salem.transactions t
+            WHERE t.finance_type = 'subscription'
+            ORDER BY t.date DESC;
+          `);
+          console.log('Created subscriptions_summary materialized view');
+        } else {
+          await db.execute(sql`
+            CREATE MATERIALIZED VIEW IF NOT EXISTS salem.invoices_summary AS
+            SELECT 
+              i.invoice_id,
+              i.user_id,
+              i.card_id,
+              i.month,
+              i.year,
+              i.due_date,
+              i.closing_date,
+              i.status,
+              i.paid_amount,
+              COUNT(t.transaction_id) as transaction_count,
+              COALESCE(SUM(t.amount), 0) as total_amount,
+              i.created_at,
+              i.updated_at
+            FROM salem.invoices i
+            LEFT JOIN salem.transactions t ON i.invoice_id = t.invoice_id
+            GROUP BY i.invoice_id, i.user_id, i.card_id, i.month, i.year, 
+                     i.due_date, i.closing_date, i.status, i.paid_amount, 
+                     i.created_at, i.updated_at;
+          `);
+          console.log('Created invoices_summary materialized view');
+        }
+      } catch (createError) {
+        console.error('Failed to create materialized view:', createError);
+      }
     }
 
     return NextResponse.json(newTransaction, { status: 201 });
