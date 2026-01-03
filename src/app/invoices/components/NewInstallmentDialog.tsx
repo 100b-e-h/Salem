@@ -5,6 +5,19 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Card as CardType } from '@/types';
 
+const CATEGORIES = [
+    { value: 'alimentacao', label: '🍔 Alimentação' },
+    { value: 'transporte', label: '🚗 Transporte' },
+    { value: 'saude', label: '⚕️ Saúde' },
+    { value: 'educacao', label: '📚 Educação' },
+    { value: 'lazer', label: '🎮 Lazer' },
+    { value: 'vestuario', label: '👕 Vestuário' },
+    { value: 'moradia', label: '🏠 Moradia' },
+    { value: 'servicos', label: '🔧 Serviços' },
+    { value: 'compras', label: '🛒 Compras' },
+    { value: 'outros', label: '📦 Outros' },
+];
+
 interface NewInstallmentDialogProps {
     open: boolean;
     onClose: () => void;
@@ -19,20 +32,42 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     card
 }) => {
     const [loading, setLoading] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [formData, setFormData] = useState({
         description: '',
-        totalAmount: '',
+        installmentAmount: '',
         installments: '2',
-        categoryId: '',
+        categoryId: 'outros',
         purchaseDate: new Date().toISOString().split('T')[0],
-        firstDueDate: ''
     });
 
-    const calculateInstallmentValue = () => {
-        if (formData.totalAmount && formData.installments) {
-            const total = parseFloat(formData.totalAmount);
+    React.useEffect(() => {
+        if (!selectedMonth && open) {
+            const currentMonth = new Date();
+            setSelectedMonth(`${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`);
+        }
+    }, [selectedMonth, open]);
+
+    const getMonthOptions = () => {
+        const options = [];
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        
+        for (let i = 0; i < 15; i++) {
+            const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+            const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+            options.push({ value, label: formattedLabel });
+        }
+        return options;
+    };
+
+    const calculateTotalValue = () => {
+        if (formData.installmentAmount && formData.installments) {
+            const installmentValue = parseFloat(formData.installmentAmount);
             const installmentCount = parseInt(formData.installments);
-            return (total / installmentCount).toFixed(2);
+            return (installmentValue * installmentCount).toFixed(2);
         }
         return '0.00';
     };
@@ -43,41 +78,44 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
         try {
             // Criar transação parcelada
-            const response = await fetch('/api/transactions', {
+            const totalAmount = parseFloat(formData.installmentAmount) * parseInt(formData.installments);
+            const [year, month] = selectedMonth.split('-').map(Number);
+            
+            const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     description: formData.description,
-                    totalAmount: parseFloat(formData.totalAmount) * 100, // Converter para centavos
+                    amount: Math.round(totalAmount * 100), // Converter para centavos e garantir inteiro
                     installments: parseInt(formData.installments),
-                    cardId: card.id,
-                    categoryId: formData.categoryId,
+                    category: formData.categoryId,
                     date: formData.purchaseDate,
-                    firstDueDate: formData.firstDueDate,
-                    type: 'despesa',
-                    isInstallment: true
+                    invoiceMonth: month,
+                    invoiceYear: year,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create installment');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create installment');
             }
 
             onInstallmentCreated();
             onClose();
 
             // Reset form
+            setSelectedMonth('');
             setFormData({
                 description: '',
-                totalAmount: '',
+                installmentAmount: '',
                 installments: '2',
-                categoryId: '',
+                categoryId: 'outros',
                 purchaseDate: new Date().toISOString().split('T')[0],
-                firstDueDate: ''
             });
-        } catch {
+        } catch (error) {
+            console.error(error);
             alert('Erro ao criar parcelamento');
         } finally {
             setLoading(false);
@@ -109,14 +147,31 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium mb-2">
-                                Valor Total (R$)
+                                Categoria
+                            </label>
+                            <select
+                                value={formData.categoryId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                            >
+                                {CATEGORIES.map((category) => (
+                                    <option key={category.value} value={category.value}>
+                                        {category.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Valor da Parcela (R$)
                             </label>
                             <input
                                 type="number"
                                 step="0.01"
                                 required
-                                value={formData.totalAmount}
-                                onChange={(e) => setFormData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                                value={formData.installmentAmount}
+                                onChange={(e) => setFormData(prev => ({ ...prev, installmentAmount: e.target.value }))}
                                 className="w-full px-3 py-2 border border-border rounded-lg bg-background"
                                 placeholder="0,00"
                             />
@@ -133,7 +188,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                             >
                                 {Array.from({ length: 24 }, (_, i) => (
                                     <option key={i + 2} value={i + 2}>
-                                        {i + 2}x de R$ {formData.totalAmount ? (parseFloat(formData.totalAmount) / (i + 2)).toFixed(2) : '0,00'}
+                                        {i + 2}x
                                     </option>
                                 ))}
                             </select>
@@ -141,7 +196,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
                         <div className="p-3 bg-muted rounded-lg">
                             <p className="text-sm text-muted-foreground">
-                                <strong>Valor por parcela:</strong> R$ {calculateInstallmentValue()}
+                                <strong>Valor Total:</strong> R$ {calculateTotalValue()}
                             </p>
                         </div>
 
@@ -160,15 +215,20 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium mb-2">
-                                Data da Primeira Parcela
+                                Competência (Mês da Fatura)
                             </label>
-                            <input
-                                type="date"
-                                required
-                                value={formData.firstDueDate}
-                                onChange={(e) => setFormData(prev => ({ ...prev, firstDueDate: e.target.value }))}
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
                                 className="w-full px-3 py-2 border border-border rounded-lg bg-background"
-                            />
+                                required
+                            >
+                                {getMonthOptions().map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="flex space-x-3 pt-4">
