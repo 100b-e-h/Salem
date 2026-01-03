@@ -1,237 +1,695 @@
 import {
+  pgTable,
+  pgSchema,
+  pgEnum,
   uuid,
   text,
-  integer,
   timestamp,
-  pgSchema,
+  uniqueIndex,
+  index,
+  customType,
+  integer,
   date,
-  pgEnum,
-  decimal,
+  numeric,
+  bigint,
   jsonb,
+  interval,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-export const salemSchema = pgSchema("salem");
+import { relations } from "drizzle-orm/relations";
 
-export const accountTypeEnum = pgEnum("account_type", [
+export const labels = pgSchema("labels");
+export const salem = pgSchema("salem");
+export const transactions = pgSchema("transactions");
+
+export const accountTypeInSalem = salem.enum("account_type", [
   "corrente",
   "poupanca",
   "carteira",
   "corretora",
 ]);
-export const invoiceStatusEnum = pgEnum("invoice_status", [
+export const invoiceStatusInSalem = salem.enum("invoice_status", [
   "open",
   "paid",
   "overdue",
 ]);
+export const financeTypeInSalem = salem.enum("finance_type", [
+  "installment",
+  "upfront",
+  "subscription",
+]);
+export const accountTypeInTransactions = transactions.enum("account_type", [
+  "corrente",
+  "poupanca",
+  "carteira",
+  "corretora",
+]);
+export const invoiceStatusInTransactions = transactions.enum("invoice_status", [
+  "open",
+  "paid",
+  "overdue",
+]);
+export const scheduleTypeInTransactions = transactions.enum("schedule_type", [
+  "installment",
+  "subscription",
+]);
+export const paymentTypeInTransactions = transactions.enum("payment_type", [
+  "SINGLE_PURCHASE",
+  "INSTALLMENT",
+  "SUBSCRIPTION",
+  "RECURRING_BILL",
+]);
 
-export const accounts = salemSchema.table("accounts", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  name: text("name").notNull(),
-  type: accountTypeEnum("type").notNull(),
-  balance: integer("balance").notNull().default(0),
-  currency: text("currency").notNull().default("BRL"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
+export const categoriesInLabels = labels.table("categories", {
+  id: uuid("id"),
+  userId: uuid("user_id"),
+  name: text("name"),
+  type: text("type"),
+  color: text("color"),
+  icon: text("icon"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
 });
 
-export const cards = salemSchema.table("cards", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  alias: text("alias").notNull(),
-  brand: text("brand").notNull(),
-  totalLimit: integer("total_limit").notNull(),
-  closingDay: integer("closing_day").notNull(),
-  dueDay: integer("due_day").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const accountsInSalem = salem.table(
+  "accounts",
+  {
+    accountId: uuid("account_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    type: customType({ dataType: () => "salem.account_type" })(
+      "type"
+    ).notNull(),
+    balance: integer("balance")
+      .default(sql`0`)
+      .notNull(),
+    currency: text("currency")
+      .default(sql`'BRL'`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("accounts_pkey").on(table.accountId),
+      idxAccountsUserId: index("idx_accounts_user_id").on(table.userId),
+    };
+  }
+);
 
-export const invoices = salemSchema.table("invoices", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  cardId: uuid("card_id")
-    .notNull()
-    .references(() => cards.id, { onDelete: "cascade" }),
-  month: integer("month").notNull(),
-  year: integer("year").notNull(),
-  totalAmount: integer("total_amount").notNull().default(0),
-  paidAmount: integer("paid_amount").notNull().default(0),
-  dueDate: date("due_date").notNull(),
-  closingDate: date("closing_date"),
-  status: invoiceStatusEnum("status").notNull().default("open"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const cardsInSalem = salem.table(
+  "cards",
+  {
+    cardId: uuid("card_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    alias: text("alias").notNull(),
+    brand: text("brand").notNull(),
+    totalLimit: integer("total_limit").notNull(),
+    closingDay: integer("closing_day").notNull(),
+    dueDay: integer("due_day").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("cards_pkey").on(table.cardId),
+      idxCardsUserId: index("idx_cards_user_id").on(table.userId),
+    };
+  }
+);
 
-export const categories = salemSchema.table("categories", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  color: text("color").notNull().default("#6b7280"),
-  icon: text("icon").notNull().default("📦"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const categoriesInSalem = salem.table(
+  "categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    color: text("color")
+      .default(sql`'#6b7280'`)
+      .notNull(),
+    icon: text("icon")
+      .default(sql`'📦'`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("categories_pkey").on(table.id),
+      idxCategoriesUserId: index("idx_categories_user_id").on(table.userId),
+    };
+  }
+);
 
-export const transactions = salemSchema.table("transactions", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  accountId: uuid("account_id").references(() => accounts.id, {
-    onDelete: "cascade",
-  }),
-  cardId: uuid("card_id").references(() => cards.id, { onDelete: "cascade" }),
-  categoryId: uuid("category_id").references(() => categories.id, {
-    onDelete: "set null",
-  }),
-  category: text("category"), // Categoria como texto (alimentacao, transporte, etc)
-  description: text("description").notNull(),
-  amount: integer("amount").notNull(),
-  type: text("type").notNull(),
-  date: date("date").notNull(),
-  sharedWith: jsonb("shared_with"), // Array de {id, email, paid} dos usuários compartilhados
-  // Campos de parcelamento
-  installments: integer("installments").default(1), // Número de parcelas (1 = à vista)
-  currentInstallment: integer("current_installment").default(1), // Parcela atual
-  parentTransactionId: uuid("parent_transaction_id"), // ID da transação pai (para parcelas)
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const expensesInSalem = salem.table(
+  "expenses",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    item: text("item").notNull(),
+    amount: integer("amount").notNull(),
+    purchaseDate: timestamp("purchase_date", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    responsibleParty: text("responsible_party"),
+    currentInstallment: integer("current_installment").notNull(),
+    totalInstallments: integer("total_installments").notNull(),
+    isFixed: text("is_fixed")
+      .default(sql`'false'`)
+      .notNull(),
+    bank: text("bank").notNull(),
+    billDate: date("bill_date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    cardId: uuid("card_id").notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("expenses_pkey").on(table.id),
+      idxExpensesBank: index("idx_expenses_bank").on(table.bank),
+      idxExpensesBillDate: index("idx_expenses_bill_date").on(table.billDate),
+      idxExpensesCardId: index("idx_expenses_card_id").on(table.cardId),
+      idxExpensesPurchaseDate: index("idx_expenses_purchase_date").on(
+        table.purchaseDate
+      ),
+      idxExpensesUserCard: index("idx_expenses_user_card").on(
+        table.userId,
+        table.cardId
+      ),
+      idxExpensesUserId: index("idx_expenses_user_id").on(table.userId),
+    };
+  }
+);
 
-export const subscriptions = salemSchema.table("subscriptions", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  cardId: uuid("card_id").references(() => cards.id, { onDelete: "cascade" }),
-  categoryId: uuid("category_id").references(() => categories.id, {
-    onDelete: "set null",
-  }),
-  name: text("name").notNull(),
-  vendor: text("vendor").notNull(),
-  currentValue: integer("current_value").notNull(),
-  chargeDay: integer("charge_day").notNull(),
-  status: text("status").notNull().default("ativa"),
-  startDate: date("start_date").notNull(),
-  nextChargeDate: date("next_charge_date").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const installmentsInSalem = salem.table(
+  "installments",
+  {
+    installmentId: uuid("installment_id")
+      .defaultRandom()
+      .primaryKey()
+      .notNull(),
+    userId: uuid("user_id").notNull(),
+    cardId: uuid("card_id"),
+    categoryId: uuid("category_id"),
+    description: text("description").notNull(),
+    vendor: text("vendor").notNull(),
+    totalAmount: integer("total_amount").notNull(),
+    installmentCount: integer("installment_count").notNull(),
+    installmentValue: integer("installment_value").notNull(),
+    currentInstallment: integer("current_installment")
+      .default(sql`1`)
+      .notNull(),
+    monthlyInterest: numeric("monthly_interest", { precision: 5, scale: 2 })
+      .default(sql`0`)
+      .notNull(),
+    purchaseDate: date("purchase_date").notNull(),
+    firstDueDate: date("first_due_date").notNull(),
+    status: text("status")
+      .default(sql`'ativa'`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      idxInstallmentsUserId: index("idx_installments_user_id").on(table.userId),
+      pkey: uniqueIndex("installments_pkey").on(table.installmentId),
+    };
+  }
+);
 
-export const installments = salemSchema.table("installments", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  cardId: uuid("card_id").references(() => cards.id, { onDelete: "cascade" }),
-  categoryId: uuid("category_id").references(() => categories.id, {
-    onDelete: "set null",
-  }),
-  description: text("description").notNull(),
-  vendor: text("vendor").notNull(),
-  totalAmount: integer("total_amount").notNull(),
-  installmentCount: integer("installment_count").notNull(),
-  installmentValue: integer("installment_value").notNull(),
-  currentInstallment: integer("current_installment").notNull().default(1),
-  monthlyInterest: decimal("monthly_interest", { precision: 5, scale: 2 })
-    .notNull()
-    .default("0"),
-  purchaseDate: date("purchase_date").notNull(),
-  firstDueDate: date("first_due_date").notNull(),
-  status: text("status").notNull().default("ativa"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const invoicesInSalem = salem.table(
+  "invoices",
+  {
+    invoiceId: uuid("invoice_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    cardId: uuid("card_id").notNull(),
+    month: integer("month").notNull(),
+    year: integer("year").notNull(),
+    dueDate: date("due_date").notNull(),
+    paidAmount: integer("paid_amount")
+      .default(sql`0`)
+      .notNull(),
+    status: customType({ dataType: () => "salem.invoice_status" })(
+      "status"
+    ).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    closingDate: date("closing_date").notNull(),
+  },
+  (table) => {
+    return {
+      idxInvoicesCardId: index("idx_invoices_card_id").on(table.cardId),
+      idxInvoicesUserId: index("idx_invoices_user_id").on(table.userId),
+      pkey: uniqueIndex("invoices_pkey").on(table.invoiceId),
+    };
+  }
+);
 
-export const assets = salemSchema.table("assets", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull(),
-  accountId: uuid("account_id").references(() => accounts.id, {
-    onDelete: "cascade",
-  }),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  principal: integer("principal").notNull(),
-  currentBalance: integer("current_balance").notNull(),
-  rateMethod: text("rate_method").notNull(),
-  annualRate: decimal("annual_rate", { precision: 5, scale: 2 }),
-  indexName: text("index_name"),
-  indexPercent: integer("index_percent"),
-  startDate: date("start_date").notNull(),
-  totalReturn: integer("total_return").notNull().default(0),
-  monthlyReturn: integer("monthly_return").notNull().default(0),
-  projectedBalance: integer("projected_balance").notNull().default(0),
-  status: text("status").notNull().default("ativo"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const profilesInSalem = salem.table(
+  "profiles",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    email: text("email").notNull(),
+    name: text("name"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => {
+    return {
+      idxProfilesEmail: index("idx_profiles_email").on(table.email),
+      emailKey: uniqueIndex("profiles_email_key").on(table.email),
+      pkey: uniqueIndex("profiles_pkey").on(table.id),
+    };
+  }
+);
 
-export type Account = typeof accounts.$inferSelect;
-export type NewAccount = typeof accounts.$inferInsert;
+export const subscriptionsInSalem = salem.table(
+  "subscriptions",
+  {
+    subscriptionId: uuid("subscription_id")
+      .defaultRandom()
+      .primaryKey()
+      .notNull(),
+    userId: uuid("user_id").notNull(),
+    cardId: uuid("card_id"),
+    categoryId: uuid("category_id"),
+    name: text("name").notNull(),
+    vendor: text("vendor").notNull(),
+    currentValue: integer("current_value").notNull(),
+    chargeDay: integer("charge_day").notNull(),
+    status: text("status")
+      .default(sql`'ativa'`)
+      .notNull(),
+    startDate: date("start_date").notNull(),
+    nextChargeDate: date("next_charge_date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      idxSubscriptionsUserId: index("idx_subscriptions_user_id").on(
+        table.userId
+      ),
+      pkey: uniqueIndex("subscriptions_pkey").on(table.subscriptionId),
+    };
+  }
+);
 
-export type Card = typeof cards.$inferSelect;
-export type NewCard = typeof cards.$inferInsert;
+export const transactionsInSalem = salem.table(
+  "transactions",
+  {
+    transactionId: uuid("transaction_id")
+      .defaultRandom()
+      .primaryKey()
+      .notNull(),
+    userId: uuid("user_id").notNull(),
+    accountId: uuid("account_id"),
+    cardId: uuid("card_id"),
+    categoryId: uuid("category_id"),
+    description: text("description").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    type: text("type").notNull(),
+    date: date("date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    sharedWith: jsonb("shared_with"),
+    category: text("category"),
+    installments: integer("installments").default(sql`1`),
+    currentInstallment: integer("current_installment").default(sql`1`),
+    parentTransactionId: uuid("parent_transaction_id"),
+    financeType: customType({ dataType: () => "salem.finance_type" })(
+      "finance_type"
+    ),
+    invoiceId: uuid("invoice_id"),
+  },
+  (table) => {
+    return {
+      idxTransactionsAccountId: index("idx_transactions_account_id").on(
+        table.accountId
+      ),
+      idxTransactionsCardDate: index("idx_transactions_card_date").on(
+        table.cardId,
+        table.date
+      ),
+      idxTransactionsCardId: index("idx_transactions_card_id").on(table.cardId),
+      idxTransactionsSharedWith: index("idx_transactions_shared_with").on(
+        table.sharedWith
+      ),
+      idxTransactionsUserId: index("idx_transactions_user_id").on(table.userId),
+      pkey: uniqueIndex("transactions_pkey").on(table.transactionId),
+    };
+  }
+);
 
-export type Invoice = typeof invoices.$inferSelect;
-export type NewInvoice = typeof invoices.$inferInsert;
+export const accountsInTransactions = transactions.table(
+  "accounts",
+  {
+    accountId: uuid("account_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    type: customType({ dataType: () => "transactions.account_type" })(
+      "type"
+    ).notNull(),
+    balance: bigint("balance", { mode: "number" })
+      .default(sql`0`)
+      .notNull(),
+    currency: text("currency")
+      .default(sql`'BRL'`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("accounts_pkey").on(table.accountId),
+      idxAccountsUserId: index("idx_accounts_user_id").on(table.userId),
+    };
+  }
+);
 
-export type Category = typeof categories.$inferSelect;
-export type NewCategory = typeof categories.$inferInsert;
+export const cardsInTransactions = transactions.table(
+  "cards",
+  {
+    cardId: uuid("card_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    alias: text("alias").notNull(),
+    brand: text("brand").notNull(),
+    totalLimit: bigint("total_limit", { mode: "number" }).notNull(),
+    closingDay: integer("closing_day").notNull(),
+    dueDay: integer("due_day").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("cards_pkey").on(table.cardId),
+      idxCardsUserId: index("idx_cards_user_id").on(table.userId),
+    };
+  }
+);
 
-export type Transaction = typeof transactions.$inferSelect;
-export type NewTransaction = typeof transactions.$inferInsert;
+export const expensesInTransactions = transactions.table(
+  "expenses",
+  {
+    expenseId: bigint("expense_id", { mode: "number" })
+      .primaryKey()
+      .notNull()
+      .generatedByDefaultAsIdentity({
+        name: "expenses_expense_id_seq",
+        startWith: 1,
+        increment: 1,
+        minValue: 1,
+        maxValue: 9223372036854775807,
+        cache: 1,
+      }),
+    description: text("description"),
+    value: bigint("value", { mode: "number" }),
+    date: date("date"),
+    paymentType: customType({ dataType: () => "transactions.payment_type" })(
+      "payment_type"
+    ),
+    expenseCategory: text("expense_category"),
+    responsibleParties: jsonb("responsible_parties"),
+    userId: uuid("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updateAt: timestamp("update_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    scheduleId: uuid("schedule_id"),
+    accountId: uuid("account_id"),
+    cardId: uuid("card_id"),
+  },
+  (table) => {
+    return {
+      pkey: uniqueIndex("expenses_pkey").on(table.expenseId),
+      idxExpensesUserId: index("idx_expenses_user_id").on(table.userId),
+    };
+  }
+);
 
-export type Subscription = typeof subscriptions.$inferSelect;
-export type NewSubscription = typeof subscriptions.$inferInsert;
+export const paymentSchedulesInTransactions = transactions.table(
+  "payment_schedules",
+  {
+    scheduleId: uuid("schedule_id").defaultRandom().primaryKey().notNull(),
+    userId: uuid("user_id").notNull(),
+    description: text("description").notNull(),
+    value: bigint("value", { mode: "number" }).notNull(),
+    scheduleType: customType({ dataType: () => "transactions.schedule_type" })(
+      "schedule_type"
+    ).notNull(),
+    startDate: date("start_date").notNull(),
+    frequency: interval("frequency").notNull(),
+    totalInstallments: integer("total_installments"),
+    isActive: boolean("is_active")
+      .default(sql`true`)
+      .notNull(),
+    createdAt: timestamp("created_at", { mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => {
+    return {
+      idxPaymentSchedulesUserId: index("idx_payment_schedules_user_id").on(
+        table.userId
+      ),
+      pkey: uniqueIndex("payment_schedules_pkey").on(table.scheduleId),
+    };
+  }
+);
 
-export type Installment = typeof installments.$inferSelect;
-export type NewInstallment = typeof installments.$inferInsert;
+export const profilesInTransactions = transactions.table(
+  "profiles",
+  {
+    userId: uuid("user_id").primaryKey().notNull(),
+    email: text("email").notNull(),
+    name: text("name"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).defaultNow(),
+  },
+  (table) => {
+    return {
+      idxProfilesEmail: index("idx_profiles_email").on(table.email),
+      emailKey: uniqueIndex("profiles_email_key").on(table.email),
+      pkey: uniqueIndex("profiles_pkey").on(table.userId),
+    };
+  }
+);
+export const expensesInSalemRelations = relations(
+  expensesInSalem,
+  ({ one }) => ({
+    cardsInSalem: one(cardsInSalem, {
+      fields: [expensesInSalem.cardId],
+      references: [cardsInSalem.cardId],
+    }),
+  })
+);
 
-export type Asset = typeof assets.$inferSelect;
-export type NewAsset = typeof assets.$inferInsert;
+export const cardsInSalemRelations = relations(cardsInSalem, ({ many }) => ({
+  expensesInSalems: many(expensesInSalem),
+  installmentsInSalems: many(installmentsInSalem),
+  invoicesInSalems: many(invoicesInSalem),
+  subscriptionsInSalems: many(subscriptionsInSalem),
+  transactionsInSalems: many(transactionsInSalem),
+}));
+
+export const installmentsInSalemRelations = relations(
+  installmentsInSalem,
+  ({ one }) => ({
+    cardsInSalem: one(cardsInSalem, {
+      fields: [installmentsInSalem.cardId],
+      references: [cardsInSalem.cardId],
+    }),
+    categoriesInSalem: one(categoriesInSalem, {
+      fields: [installmentsInSalem.categoryId],
+      references: [categoriesInSalem.id],
+    }),
+  })
+);
+
+export const categoriesInSalemRelations = relations(
+  categoriesInSalem,
+  ({ many }) => ({
+    installmentsInSalems: many(installmentsInSalem),
+    subscriptionsInSalems: many(subscriptionsInSalem),
+    transactionsInSalems: many(transactionsInSalem),
+  })
+);
+
+export const invoicesInSalemRelations = relations(
+  invoicesInSalem,
+  ({ one, many }) => ({
+    cardsInSalem: one(cardsInSalem, {
+      fields: [invoicesInSalem.cardId],
+      references: [cardsInSalem.cardId],
+    }),
+    transactionsInSalems: many(transactionsInSalem),
+  })
+);
+
+export const subscriptionsInSalemRelations = relations(
+  subscriptionsInSalem,
+  ({ one }) => ({
+    cardsInSalem: one(cardsInSalem, {
+      fields: [subscriptionsInSalem.cardId],
+      references: [cardsInSalem.cardId],
+    }),
+    categoriesInSalem: one(categoriesInSalem, {
+      fields: [subscriptionsInSalem.categoryId],
+      references: [categoriesInSalem.id],
+    }),
+  })
+);
+
+export const transactionsInSalemRelations = relations(
+  transactionsInSalem,
+  ({ one }) => ({
+    invoicesInSalem: one(invoicesInSalem, {
+      fields: [transactionsInSalem.invoiceId],
+      references: [invoicesInSalem.invoiceId],
+    }),
+    accountsInSalem: one(accountsInSalem, {
+      fields: [transactionsInSalem.accountId],
+      references: [accountsInSalem.accountId],
+    }),
+    cardsInSalem: one(cardsInSalem, {
+      fields: [transactionsInSalem.cardId],
+      references: [cardsInSalem.cardId],
+    }),
+    categoriesInSalem: one(categoriesInSalem, {
+      fields: [transactionsInSalem.categoryId],
+      references: [categoriesInSalem.id],
+    }),
+  })
+);
+
+export const accountsInSalemRelations = relations(
+  accountsInSalem,
+  ({ many }) => ({
+    transactionsInSalems: many(transactionsInSalem),
+  })
+);
+
+export const accountsInTransactionsRelations = relations(
+  accountsInTransactions,
+  ({ one, many }) => ({
+    profilesInTransaction: one(profilesInTransactions, {
+      fields: [accountsInTransactions.userId],
+      references: [profilesInTransactions.userId],
+    }),
+    expensesInTransactions: many(expensesInTransactions),
+  })
+);
+
+export const profilesInTransactionsRelations = relations(
+  profilesInTransactions,
+  ({ many }) => ({
+    accountsInTransactions: many(accountsInTransactions),
+    cardsInTransactions: many(cardsInTransactions),
+    expensesInTransactions: many(expensesInTransactions),
+    paymentSchedulesInTransactions: many(paymentSchedulesInTransactions),
+  })
+);
+
+export const cardsInTransactionsRelations = relations(
+  cardsInTransactions,
+  ({ one, many }) => ({
+    profilesInTransaction: one(profilesInTransactions, {
+      fields: [cardsInTransactions.userId],
+      references: [profilesInTransactions.userId],
+    }),
+    expensesInTransactions: many(expensesInTransactions),
+  })
+);
+
+export const expensesInTransactionsRelations = relations(
+  expensesInTransactions,
+  ({ one }) => ({
+    accountsInTransaction: one(accountsInTransactions, {
+      fields: [expensesInTransactions.accountId],
+      references: [accountsInTransactions.accountId],
+    }),
+    cardsInTransaction: one(cardsInTransactions, {
+      fields: [expensesInTransactions.cardId],
+      references: [cardsInTransactions.cardId],
+    }),
+    paymentSchedulesInTransaction: one(paymentSchedulesInTransactions, {
+      fields: [expensesInTransactions.scheduleId],
+      references: [paymentSchedulesInTransactions.scheduleId],
+    }),
+    profilesInTransaction: one(profilesInTransactions, {
+      fields: [expensesInTransactions.userId],
+      references: [profilesInTransactions.userId],
+    }),
+  })
+);
+
+export const paymentSchedulesInTransactionsRelations = relations(
+  paymentSchedulesInTransactions,
+  ({ one, many }) => ({
+    expensesInTransactions: many(expensesInTransactions),
+    profilesInTransaction: one(profilesInTransactions, {
+      fields: [paymentSchedulesInTransactions.userId],
+      references: [profilesInTransactions.userId],
+    }),
+  })
+);
