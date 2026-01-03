@@ -9,6 +9,9 @@ import {
   dateSchema,
 } from "@/lib/validation";
 import { z } from "zod";
+import { db } from "@/lib/drizzle";
+import { invoicesSummary } from "@/lib/views";
+import { eq } from "drizzle-orm";
 
 async function getAuthenticatedUser() {
   const cookieStore = await cookies();
@@ -51,6 +54,48 @@ const updateInvoiceSchema = z.object({
   closingDate: dateSchema.optional(),
   status: z.enum(["open", "paid", "overdue"]).optional(),
 });
+
+// GET - Buscar detalhes da fatura com summary
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Validar parâmetros da URL
+    const { id } = await params;
+    const invoiceIdResult = uuidSchema.safeParse(id);
+    if (!invoiceIdResult.success) {
+      return NextResponse.json(
+        { error: "ID da fatura inválido" },
+        { status: 400 }
+      );
+    }
+
+    const user = await getAuthenticatedUser();
+    const validInvoiceId = invoiceIdResult.data;
+
+    // Buscar summary da fatura da materialized view
+    const [summary] = await db
+      .select()
+      .from(invoicesSummary)
+      .where(eq(invoicesSummary.invoiceId, validInvoiceId));
+
+    if (!summary) {
+      return NextResponse.json(
+        { error: "Fatura não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(summary);
+  } catch (err) {
+    console.error("Error fetching invoice summary:", err);
+    return NextResponse.json(
+      { error: "Erro ao buscar fatura" },
+      { status: 500 }
+    );
+  }
+}
 
 // PATCH - Marcar fatura como paga
 export async function PATCH(
