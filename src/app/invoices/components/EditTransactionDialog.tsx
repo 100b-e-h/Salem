@@ -27,7 +27,10 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
     const [date, setDate] = useState('');
     const [category, setCategory] = useState('');
     const [installments, setInstallments] = useState(1);
+    const [financeType, setFinanceType] = useState<'upfront' | 'installment' | 'subscription'>('upfront');
+    const [invoiceId, setInvoiceId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [invoices, setInvoices] = useState<Array<{invoiceId: string, month: number, year: number, cardId: string}>>([]);
 
     const CATEGORIES = [
         { value: 'alimentacao', label: '🍔 Alimentação' },
@@ -50,12 +53,28 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             const tx = transaction as TxWithCat;
             setCategory(tx.category || '');
             setInstallments(transaction.installments || 1);
+            setFinanceType(transaction.financeType || 'upfront');
+            setInvoiceId(transaction.invoiceId || '');
+            
+            // Fetch invoices for the card
+            if (transaction.cardId) {
+                fetch('/api/invoices')
+                    .then(res => res.json())
+                    .then(data => {
+                        const cardInvoices = data.filter((inv: any) => inv.cardId === transaction.cardId);
+                        setInvoices(cardInvoices);
+                    })
+                    .catch(err => console.error('Failed to fetch invoices:', err));
+            }
         } else {
             setDescription('');
             setAmount(0);
             setDate('');
             setCategory('');
             setInstallments(1);
+            setFinanceType('upfront');
+            setInvoiceId('');
+            setInvoices([]);
         }
     }, [transaction]);
 
@@ -71,7 +90,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
 
         setIsSaving(true);
         try {
-            const res = await fetch(`/api/transactions/${transaction.id}`, {
+            const res = await fetch(`/api/transactions/${transaction.transactionId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -79,7 +98,9 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                     amount,
                     date,
                     category,
-                    installments
+                    installments,
+                    financeType,
+                    invoiceId: invoiceId || null,
                 }),
             });
             if (!res.ok) throw new Error('Failed to update');
@@ -155,6 +176,41 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                                 ⚠️ Alterar o número de parcelas irá recriar o lançamento com as novas parcelas
                             </p>
                         )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="financeType">Tipo de Pagamento</Label>
+                        <select
+                            id="financeType"
+                            value={financeType}
+                            onChange={(e) => setFinanceType(e.target.value as 'upfront' | 'installment' | 'subscription')}
+                            className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="upfront">💵 À Vista</option>
+                            <option value="installment">📅 Parcelado</option>
+                            <option value="subscription">🔄 Assinatura</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="invoiceId">Fatura (Competência)</Label>
+                        <select
+                            id="invoiceId"
+                            value={invoiceId}
+                            onChange={(e) => setInvoiceId(e.target.value)}
+                            className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Selecione uma fatura...</option>
+                            {invoices.map(inv => {
+                                const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                                const monthName = monthNames[inv.month - 1];
+                                return (
+                                    <option key={inv.invoiceId} value={inv.invoiceId}>
+                                        {monthName}/{inv.year}
+                                    </option>
+                                );
+                            })}
+                        </select>
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
