@@ -92,7 +92,7 @@ export function TransactionHistoryDialog({ open, onClose, account }: Transaction
             // Filtro por pesquisa
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
-                return transaction.description.toLowerCase().includes(query);
+                return transaction.description?.toLowerCase().includes(query) || false;
             }
 
             return true;
