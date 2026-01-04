@@ -10,7 +10,6 @@ import {
   customType,
   integer,
   date,
-  numeric,
   bigint,
   jsonb,
   interval,
@@ -205,35 +204,27 @@ export const installmentsInSalem = salem.table(
       .defaultRandom()
       .primaryKey()
       .notNull(),
-    userId: uuid("user_id").notNull(),
+    userId: uuid("user_id"),
+    accountId: uuid("account_id"),
     cardId: uuid("card_id"),
     categoryId: uuid("category_id"),
-    description: text("description").notNull(),
-    vendor: text("vendor").notNull(),
-    totalAmount: integer("total_amount").notNull(),
-    installmentCount: integer("installment_count").notNull(),
-    installmentValue: integer("installment_value").notNull(),
-    currentInstallment: integer("current_installment")
-      .default(sql`1`)
-      .notNull(),
-    monthlyInterest: numeric("monthly_interest", { precision: 5, scale: 2 })
-      .default(sql`0`)
-      .notNull(),
-    purchaseDate: date("purchase_date").notNull(),
-    firstDueDate: date("first_due_date").notNull(),
-    status: text("status")
-      .default(sql`'ativa'`)
-      .notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
-      .defaultNow()
-      .notNull(),
+    installmentBaseDescription: text("installment_base_description"),
+    installmentAmount: bigint("installment_amount", { mode: "number" }),
+    type: text("type"),
+    date: date("date"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+    sharedWith: jsonb("shared_with"),
+    category: text("category"),
+    installments: integer("installments"),
+    parentTransactionId: uuid("parent_transaction_id"),
+    financeType: customType({ dataType: () => "salem.finance_type" })(
+      "finance_type"
+    ),
+    invoiceId: uuid("invoice_id"),
   },
   (table) => {
     return {
-      idxInstallmentsUserId: index("idx_installments_user_id").on(table.userId),
       pkey: uniqueIndex("installments_pkey").on(table.installmentId),
     };
   }
@@ -361,6 +352,7 @@ export const transactionsInSalem = salem.table(
       "finance_type"
     ),
     invoiceId: uuid("invoice_id"),
+    installmentsId: uuid("installments_id"),
   },
   (table) => {
     return {
@@ -546,34 +538,10 @@ export const expensesInSalemRelations = relations(
 
 export const cardsInSalemRelations = relations(cardsInSalem, ({ many }) => ({
   expensesInSalems: many(expensesInSalem),
-  installmentsInSalems: many(installmentsInSalem),
   invoicesInSalems: many(invoicesInSalem),
   subscriptionsInSalems: many(subscriptionsInSalem),
   transactionsInSalems: many(transactionsInSalem),
 }));
-
-export const installmentsInSalemRelations = relations(
-  installmentsInSalem,
-  ({ one }) => ({
-    cardsInSalem: one(cardsInSalem, {
-      fields: [installmentsInSalem.cardId],
-      references: [cardsInSalem.cardId],
-    }),
-    categoriesInSalem: one(categoriesInSalem, {
-      fields: [installmentsInSalem.categoryId],
-      references: [categoriesInSalem.id],
-    }),
-  })
-);
-
-export const categoriesInSalemRelations = relations(
-  categoriesInSalem,
-  ({ many }) => ({
-    installmentsInSalems: many(installmentsInSalem),
-    subscriptionsInSalems: many(subscriptionsInSalem),
-    transactionsInSalems: many(transactionsInSalem),
-  })
-);
 
 export const invoicesInSalemRelations = relations(
   invoicesInSalem,
@@ -600,9 +568,21 @@ export const subscriptionsInSalemRelations = relations(
   })
 );
 
+export const categoriesInSalemRelations = relations(
+  categoriesInSalem,
+  ({ many }) => ({
+    subscriptionsInSalems: many(subscriptionsInSalem),
+    transactionsInSalems: many(transactionsInSalem),
+  })
+);
+
 export const transactionsInSalemRelations = relations(
   transactionsInSalem,
   ({ one }) => ({
+    installmentsInSalem: one(installmentsInSalem, {
+      fields: [transactionsInSalem.installmentsId],
+      references: [installmentsInSalem.installmentId],
+    }),
     invoicesInSalem: one(invoicesInSalem, {
       fields: [transactionsInSalem.invoiceId],
       references: [invoicesInSalem.invoiceId],
@@ -619,6 +599,13 @@ export const transactionsInSalemRelations = relations(
       fields: [transactionsInSalem.categoryId],
       references: [categoriesInSalem.id],
     }),
+  })
+);
+
+export const installmentsInSalemRelations = relations(
+  installmentsInSalem,
+  ({ many }) => ({
+    transactionsInSalems: many(transactionsInSalem),
   })
 );
 
