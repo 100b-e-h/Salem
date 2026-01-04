@@ -7,7 +7,7 @@ export type {
   NewAccount,
   NewCard,
   NewInvoice,
-} from "@/lib/schema";
+} from "@/lib/db_types";
 
 export interface Account {
   accountId: string;
@@ -116,7 +116,6 @@ export interface Transaction {
   currentInstallment?: number;
   parentTransactionId?: string;
   financeType?: FinanceType;
-  sharedWith?: Array<{ id: string; email: string; paid: boolean }>;
   createdAt: Date;
   updatedAt: Date;
 }
