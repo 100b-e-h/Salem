@@ -214,7 +214,7 @@ export const installmentsInSalem = salem.table(
     date: date("date"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
-    sharedWith: jsonb("shared_with"),
+    tags: jsonb("tags"),
     category: text("category"),
     installments: integer("installments"),
     parentTransactionId: uuid("parent_transaction_id"),
@@ -343,7 +343,7 @@ export const transactionsInSalem = salem.table(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
-    sharedWith: jsonb("shared_with"),
+    tags: jsonb("tags"),
     category: text("category"),
     installments: integer("installments").default(sql`1`),
     currentInstallment: integer("current_installment").default(sql`1`),
@@ -364,8 +364,8 @@ export const transactionsInSalem = salem.table(
         table.date
       ),
       idxTransactionsCardId: index("idx_transactions_card_id").on(table.cardId),
-      idxTransactionsSharedWith: index("idx_transactions_shared_with").on(
-        table.sharedWith
+      idxTransactionsTags: index("idx_transactions_tags").on(
+        table.tags
       ),
       idxTransactionsUserId: index("idx_transactions_user_id").on(table.userId),
       pkey: uniqueIndex("transactions_pkey").on(table.transactionId),
