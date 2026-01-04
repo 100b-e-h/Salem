@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { MoneyInput } from '@/components/ui/MoneyInput';
+import { TagsInput } from '@/components/ui/TagsInput';
 import { Card as CardType } from '@/types';
 
 interface NewSubscriptionDialogProps {
@@ -25,10 +27,11 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
     
     const [formData, setFormData] = useState({
         description: '',
-        amount: '',
+        amountCentavos: 0,
         categoryId: '',
         chargeDay: '1',
-        transactionDate: new Date().toISOString().split('T')[0] // Date when subscription is charged
+        transactionDate: new Date().toISOString().split('T')[0], // Date when subscription is charged
+        tags: [] as string[]
     });
 
     // Generate month options for Competência (15 months: current + 14 future)
@@ -121,13 +124,14 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
                 },
                 body: JSON.stringify({
                     description: formData.description,
-                    amount: Math.round(parseFloat(formData.amount) * 100), // Converter para centavos
+                    amount: formData.amountCentavos,
                     category: formData.categoryId || null,
                     date: formData.transactionDate, // Use transaction date, not invoice date
                     installments: 1, // Assinatura é tratada como transação única recorrente
                     invoiceMonth: month,
                     invoiceYear: year,
                     financeType: "subscription", // Mark as subscription
+                    tags: formData.tags,
                 }),
             });
 
@@ -141,10 +145,11 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
             // Reset form
             setFormData({
                 description: '',
-                amount: '',
+                amountCentavos: 0,
                 categoryId: '',
                 chargeDay: card?.dueDay.toString() || '1',
-                transactionDate: new Date().toISOString().split('T')[0]
+                transactionDate: new Date().toISOString().split('T')[0],
+                tags: []
             });
         } catch {
             alert('Erro ao criar assinatura');
@@ -201,15 +206,12 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium mb-2">
-                                Valor Mensal (R$)
+                                Valor Mensal
                             </label>
-                            <input
-                                type="number"
-                                step="0.01"
+                            <MoneyInput
                                 required
-                                value={formData.amount}
-                                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                initialCentavos={formData.amountCentavos}
+                                onValueChange={(centavos) => setFormData(prev => ({ ...prev, amountCentavos: centavos }))}
                                 placeholder="0,00"
                             />
                         </div>
@@ -258,6 +260,17 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
                                 value={formData.transactionDate}
                                 onChange={(e) => setFormData(prev => ({ ...prev, transactionDate: e.target.value }))}
                                 className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Tags
+                            </label>
+                            <TagsInput
+                                value={formData.tags}
+                                onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+                                placeholder="Adicionar tags (Enter para adicionar)..."
                             />
                         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
@@ -9,6 +9,7 @@ import { Card as CardType } from '@/types';
 import { TransactionsTable } from './TransactionsTable';
 import { NewSubscriptionDialog } from './NewSubscriptionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
+import { InvoiceFiltersPopover, type FilterState } from './InvoiceFiltersPopover';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -24,6 +25,17 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [filters, setFilters] = useState<FilterState>({
+        searchQuery: '',
+        startDate: '',
+        endDate: '',
+        minAmount: '',
+        maxAmount: '',
+        selectedTags: [],
+        selectedCategories: [],
+        minInstallments: '',
+        maxInstallments: '',
+    });
 
     const fetchSubscriptions = useCallback(async () => {
         if (!user || !selectedCard) return;
@@ -104,6 +116,70 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     const getSelectedCard = () => {
         return cards.find(card => card.cardId === selectedCard);
     };
+
+    // Filter subscriptions based on filter state
+    const filteredSubscriptions = useMemo(() => {
+        return subscriptions.filter(transaction => {
+            // Search query filter
+            if (filters.searchQuery) {
+                const query = filters.searchQuery.toLowerCase();
+                const matchesDescription = transaction.description?.toLowerCase().includes(query);
+                if (!matchesDescription) return false;
+            }
+
+            // Date range filter
+            if (filters.startDate || filters.endDate) {
+                const transactionDate = new Date(transaction.date);
+                if (filters.startDate) {
+                    const startDate = new Date(filters.startDate);
+                    if (transactionDate < startDate) return false;
+                }
+                if (filters.endDate) {
+                    const endDate = new Date(filters.endDate);
+                    endDate.setHours(23, 59, 59, 999);
+                    if (transactionDate > endDate) return false;
+                }
+            }
+
+            // Amount range filter
+            if (filters.minAmount) {
+                const minAmount = parseFloat(filters.minAmount) * 100;
+                if (Math.abs(transaction.amount) < minAmount) return false;
+            }
+            if (filters.maxAmount) {
+                const maxAmount = parseFloat(filters.maxAmount) * 100;
+                if (Math.abs(transaction.amount) > maxAmount) return false;
+            }
+
+            // Tags filter
+            if (filters.selectedTags.length > 0) {
+                if (!transaction.tags || !Array.isArray(transaction.tags)) return false;
+                const hasMatchingTag = filters.selectedTags.some(tag => transaction.tags?.includes(tag));
+                if (!hasMatchingTag) return false;
+            }
+
+            // Categories filter
+            if (filters.selectedCategories.length > 0) {
+                if (!transaction.category) return false;
+                if (!filters.selectedCategories.includes(transaction.category)) return false;
+            }
+
+            return true;
+        });
+    }, [subscriptions, filters]);
+
+    // Calculate active filter count
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (filters.searchQuery) count++;
+        if (filters.startDate) count++;
+        if (filters.endDate) count++;
+        if (filters.minAmount) count++;
+        if (filters.maxAmount) count++;
+        if (filters.selectedTags.length > 0) count++;
+        if (filters.selectedCategories.length > 0) count++;
+        return count;
+    }, [filters]);
 
     const totalSubscriptionsValue = subscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
 
@@ -240,10 +316,44 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                         <h3 className="text-lg font-semibold text-foreground">
                                             🔄 Assinaturas Ativas
                                         </h3>
-                                        <Badge variant="secondary">
-                                            {subscriptions.length} assinatura{subscriptions.length !== 1 ? 's' : ''}
-                                        </Badge>
+                                        <div className="flex items-center space-x-2">
+                                            <InvoiceFiltersPopover
+                                                onFilterChange={setFilters}
+                                                activeFilterCount={activeFilterCount}
+                                                transactions={subscriptions}
+                                                showInstallmentFilter={false}
+                                            />
+                                            <Badge variant="secondary">
+                                                {subscriptions.length} assinatura{subscriptions.length !== 1 ? 's' : ''}
+                                            </Badge>
+                                        </div>
                                     </div>
+
+                                    {activeFilterCount > 0 && (
+                                        <div className="mb-4 flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                                            <span className="text-sm text-muted-foreground">
+                                                Mostrando <strong className="text-foreground">{filteredSubscriptions.length}</strong> de <strong className="text-foreground">{subscriptions.length}</strong> assinaturas
+                                            </span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setFilters({
+                                                    searchQuery: '',
+                                                    startDate: '',
+                                                    endDate: '',
+                                                    minAmount: '',
+                                                    maxAmount: '',
+                                                    selectedTags: [],
+                                                    selectedCategories: [],
+                                                    minInstallments: '',
+                                                    maxInstallments: '',
+                                                })}
+                                                className="text-xs"
+                                            >
+                                                🔄 Limpar Filtros
+                                            </Button>
+                                        </div>
+                                    )}
 
                                     {subscriptions.length === 0 ? (
                                         <div className="text-center py-8">
@@ -257,7 +367,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                         </div>
                                     ) : (
                                         <TransactionsTable
-                                            transactions={subscriptions}
+                                            transactions={filteredSubscriptions}
                                             onEdit={handleEditTransaction}
                                             onDelete={handleDeleteSubscription}
                                         />
