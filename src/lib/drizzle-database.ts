@@ -430,7 +430,7 @@ class DrizzleDatabase {
       date: string;
       category?: string;
       installments: number;
-      sharedWith?: unknown;
+      tags?: string[];
     },
     userId: string
   ): Promise<object[]> {
@@ -464,7 +464,7 @@ class DrizzleDatabase {
         installments: transactionData.installments,
         currentInstallment: i + 1,
         parentTransactionId: i === 0 ? null : undefined, // Será preenchido depois
-        sharedWith: transactionData.sharedWith || null,
+        tags: transactionData.tags || [],
       };
 
       transactions.push(transaction);
