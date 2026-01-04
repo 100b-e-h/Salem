@@ -83,7 +83,7 @@ export default function CardsPage() {
 
     const calculateLimitUsage = (card: CardType): CardUsage => {
         const openInvoices = invoices.filter(invoice =>
-            invoice.cardId === card.id &&
+            invoice.cardId === card.cardId &&
             invoice.status === 'open'
         );
 
@@ -229,8 +229,8 @@ export default function CardsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {cards.map((card) => {
                         const usage = calculateLimitUsage(card);
-                        const currentInvoice = getCardInvoice(card.id);
-                        const nextInvoice = getCardInvoice(card.id, 'next');
+                        const currentInvoice = getCardInvoice(card.cardId);
+                        const nextInvoice = getCardInvoice(card.cardId, 'next');
 
                         let transactions: Transaction[] = [];
                         if (currentInvoice && typeof currentInvoice === 'object') {
@@ -241,7 +241,7 @@ export default function CardsPage() {
                         }
 
                         return (
-                            <Card key={card.id} className="bg-card border-border">
+                            <Card key={card.cardId} className="bg-card border-border">
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center space-x-3">
@@ -258,16 +258,16 @@ export default function CardsPage() {
                                             >
                                                 {usage.percentage.toFixed(0)}%
                                             </Badge>
-                                            <Button variant="ghost" size="icon" className="ml-2 px-2 py-1" onClick={() => setOpenMenuId(openMenuId === card.id ? null : card.id)}>
+                                            <Button variant="ghost" size="icon" className="ml-2 px-2 py-1" onClick={() => setOpenMenuId(openMenuId === card.cardId ? null : card.cardId)}>
                                                 ⋯
                                             </Button>
-                                            {openMenuId === card.id && (
+                                            {openMenuId === card.cardId && (
                                                 <div className="absolute right-0 mt-2 w-32 bg-popover border border-border rounded shadow-lg z-10">
                                                     <button className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted cursor-pointer" onClick={() => { setCardToEdit(card); setEditDialogOpen(true); setOpenMenuId(null); }}>Editar</button>
                                                     <button className="block w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted cursor-pointer" onClick={async () => {
                                                         setOpenMenuId(null);
                                                         if (window.confirm('Tem certeza que deseja excluir este cartão?')) {
-                                                            await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
+                                                            await fetch(`/api/cards/${card.cardId}`, { method: 'DELETE' });
                                                             loadData();
                                                         }
                                                     }}>Excluir</button>
@@ -340,12 +340,12 @@ export default function CardsPage() {
                                     </div>
 
                                     <div className="flex space-x-2">
-                                        <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpenInvoiceDialogId(card.id)}>
+                                        <Button variant="outline" size="sm" className="flex-1" onClick={() => setOpenInvoiceDialogId(card.cardId)}>
                                             Ver Fatura
                                         </Button>
                                     </div>
 
-                                    {openInvoiceDialogId === card.id && (
+                                    {openInvoiceDialogId === card.cardId && (
                                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                                             <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-lg p-6 relative">
                                                 <button className="absolute top-2 right-2 text-muted-foreground cursor-pointer" onClick={() => setOpenInvoiceDialogId(null)}>&times;</button>
@@ -353,7 +353,7 @@ export default function CardsPage() {
                                                 {transactions.length > 0 ? (
                                                     <ul className="divide-y divide-border mb-2">
                                                         {transactions.map((tx) => (
-                                                            <li key={tx.id} className="py-2 flex justify-between text-sm">
+                                                            <li key={tx.transactionId} className="py-2 flex justify-between text-sm">
                                                                 <span className="text-foreground">{tx.description}</span>
                                                                 <CurrencyDisplay amount={tx.amount} size="sm" variant={tx.amount < 0 ? 'negative' : 'positive'} />
                                                             </li>
