@@ -158,27 +158,6 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="installments">Número de Parcelas</Label>
-                        <select
-                            id="installments"
-                            value={installments}
-                            onChange={(e) => setInstallments(Number(e.target.value))}
-                            className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                            {Array.from({ length: 36 }, (_, i) => i + 1).map(num => (
-                                <option key={num} value={num}>
-                                    {num === 1 ? '1x (À vista)' : `${num}x`}
-                                </option>
-                            ))}
-                        </select>
-                        {installments > 1 && (
-                            <p className="text-sm text-muted-foreground">
-                                ⚠️ Alterar o número de parcelas irá recriar o lançamento com as novas parcelas
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
                         <Label htmlFor="financeType">Tipo de Pagamento</Label>
                         <select
                             id="financeType"
