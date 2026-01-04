@@ -86,7 +86,7 @@ export default function AccountsPage() {
     const handleDelete = async (account: Account) => {
         if (!window.confirm(`Tem certeza que deseja excluir a conta "${account.name}"? Essa ação não pode ser desfeita.`)) return;
         try {
-            const response = await fetch(`/api/accounts/${account.id}`, {
+            const response = await fetch(`/api/accounts/${account.accountId}`, {
                 method: 'DELETE',
             });
             if (!response.ok) throw new Error('Erro ao excluir conta');
@@ -253,7 +253,7 @@ export default function AccountsPage() {
                             </thead>
                             <tbody className="bg-card divide-y divide-border">
                                 {accounts.map((account) => (
-                                    <tr key={account.id} className="hover:bg-muted/30">
+                                    <tr key={account.accountId} className="hover:bg-muted/30">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="text-xl mr-3">

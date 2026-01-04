@@ -47,7 +47,7 @@ export function TransactionHistoryDialog({ open, onClose, account }: Transaction
     const loadTransactions = React.useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/accounts/${account.id}/transactions`);
+            const response = await fetch(`/api/accounts/${account.accountId}/transactions`);
             if (response.ok) {
                 const data = await response.json();
                 setTransactions(data);

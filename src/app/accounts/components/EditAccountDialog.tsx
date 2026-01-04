@@ -42,7 +42,7 @@ export function EditAccountDialog({ open, onClose, onAccountUpdated, account }: 
 
         setIsSubmitting(true);
         try {
-            const response = await fetch(`/api/accounts/${account.id}`, {
+            const response = await fetch(`/api/accounts/${account.accountId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export function EditAccountDialog({ open, onClose, onAccountUpdated, account }: 
                                 onValueChange={setBalance}
                                 allowNegative={true}
                                 required
-                                key={account?.id}
+                                key={account?.accountId}
                                 value={balance === 0 ? '' : (Math.abs(balance) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             />
                             <Button type="button" size="sm" variant={balance < 0 ? 'default' : 'outline'} onClick={() => setBalance(balance > 0 ? -balance : balance === 0 ? -100 : balance)} title="Negativo">-</Button>

@@ -35,7 +35,7 @@ export function TransactionDialog({ open, onClose, onTransactionCreated, account
         try {
             const finalAmount = type === 'withdrawal' ? -Math.abs(amount) : Math.abs(amount);
 
-            const response = await fetch(`/api/accounts/${account.id}/transactions`, {
+            const response = await fetch(`/api/accounts/${account.accountId}/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
