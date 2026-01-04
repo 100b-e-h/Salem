@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card as CardType } from '@/types';
 import { TransactionsTable } from './TransactionsTable';
 import { NewInstallmentDialog } from './NewInstallmentDialog';
+import { EditInstallmentDialog } from './EditInstallmentDialog';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -21,6 +22,8 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     const [loading, setLoading] = useState(true);
     const [installments, setInstallments] = useState<Transaction[]>([]);
     const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     const fetchInstallments = useCallback(async () => {
         if (!user || !selectedCard) return;
@@ -40,6 +43,12 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     useEffect(() => {
         fetchInstallments();
     }, [fetchInstallments, installmentDialogOpen]);
+
+    const handleEditTransaction = (tx: Transaction) => {
+        // Note: Editing an installment will affect all related installments with the same transaction reference
+        setEditingTransaction(tx);
+        setEditDialogOpen(true);
+    };
 
     const handleDeleteInstallment = async (tx: Transaction) => {
         const confirmMessage = `Tem certeza que deseja deletar "${tx.description}"? Isso irá deletar TODAS AS ${tx.installments} PARCELAS do lançamento.`;
@@ -115,15 +124,26 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     return (
         <div className="space-y-6">
             {selectedCardData && (
-                <NewInstallmentDialog
-                    open={installmentDialogOpen}
-                    onClose={() => setInstallmentDialogOpen(false)}
-                    onInstallmentCreated={() => {
-                        fetchInstallments();
-                        loadCards();
-                    }}
-                    card={selectedCardData}
-                />
+                <>
+                    <NewInstallmentDialog
+                        open={installmentDialogOpen}
+                        onClose={() => setInstallmentDialogOpen(false)}
+                        onInstallmentCreated={() => {
+                            fetchInstallments();
+                            loadCards();
+                        }}
+                        card={selectedCardData}
+                    />
+                    <EditInstallmentDialog
+                        open={editDialogOpen}
+                        onOpenChange={(open) => setEditDialogOpen(open)}
+                        transaction={editingTransaction}
+                        onSaved={() => {
+                            fetchInstallments();
+                            loadCards();
+                        }}
+                    />
+                </>
             )}
 
             <div className="flex items-center justify-between">
@@ -241,7 +261,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                     ) : (
                                         <TransactionsTable
                                             transactions={installments}
-                                            onEdit={() => {}}
+                                            onEdit={handleEditTransaction}
                                             onDelete={handleDeleteInstallment}
                                         />
                                     )}
