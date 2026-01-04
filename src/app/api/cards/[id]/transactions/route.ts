@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/drizzle";
-import { transactionsInSalem as transactions, cardsInSalem as cards, invoicesInSalem as invoices } from "@/lib/schema";
+import { 
+  transactionsInSalem as transactions, 
+  cardsInSalem as cards, 
+  invoicesInSalem as invoices, 
+  installmentsInSalem 
+} from "@/lib/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { calculateInvoicePeriod, formatDateForDb } from "@/utils/invoice";
@@ -9,6 +14,12 @@ import {
   createTransactionSchema,
   uuidSchema,
 } from "@/lib/validation";
+
+// Helper function to remove installment suffix from description (e.g., " (1/6)")
+function stripInstallmentSuffix(description: string): string {
+  const installmentPattern = / \(\d+\/\d+\)$/;
+  return description.replace(installmentPattern, '').trim();
+}
 
 // GET - Listar transações de um cartão
 export async function GET(
@@ -138,10 +149,38 @@ export async function POST(
 
     if (validatedData.installments > 1) {
       // Lógica para transações parceladas
-      const createdTransactions = [];
+      
+      // 1. Primeiro, criar o registro base no installmentsInSalem
       const installmentAmount = Math.round(
         validatedData.amount / validatedData.installments
       );
+      
+      // Strip any installment suffix from the description before storing
+      const cleanDescription = stripInstallmentSuffix(validatedData.description);
+      
+      const [installmentBase] = await db
+        .insert(installmentsInSalem)
+        .values({
+          userId: user.id,
+          cardId: validCardId,
+          installmentBaseDescription: cleanDescription,
+          installmentAmount: installmentAmount,
+          installments: validatedData.installments,
+          category: validatedData.category || null,
+          date: validatedData.date,
+          financeType: "installment",
+          type: "expense",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .returning();
+
+      if (!installmentBase) {
+        throw new Error("Failed to create installment base record");
+      }
+
+      // 2. Agora criar todas as transações referenciando o installmentId
+      const createdTransactions = [];
       const remainderAmount =
         validatedData.amount -
         installmentAmount * (validatedData.installments - 1);
@@ -227,7 +266,7 @@ export async function POST(
             userId: user.id,
             cardId: validCardId,
             amount: Math.round(Math.abs(currentAmount)),
-            description: `${validatedData.description} (${i + 1}/${
+            description: `${cleanDescription} (${i + 1}/${
               validatedData.installments
             })`,
             type: "expense",
@@ -238,6 +277,7 @@ export async function POST(
             sharedWith: validatedData.sharedWith || null,
             financeType: "installment",
             invoiceId: invoice.invoiceId,
+            installmentsId: installmentBase.installmentId, // Referência ao registro base
           })
           .returning();
 
