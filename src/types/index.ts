@@ -10,7 +10,7 @@ export type {
 } from "@/lib/schema";
 
 export interface Account {
-  account_id: string;
+  accountId: string;
   name: string;
   type: "corrente" | "poupanca" | "carteira" | "corretora";
   balance: number;
@@ -47,7 +47,7 @@ export interface Invoice {
 }
 
 export interface AccountDisplay {
-  account_id: string;
+  accountId: string;
   name: string;
   type: "corrente" | "poupanca" | "carteira" | "corretora";
   balance: CentavosValue;
@@ -58,7 +58,7 @@ export interface AccountDisplay {
 }
 
 export interface CardDisplay {
-  account_id: string;
+  accountId: string;
   alias: string;
   brand: string;
   totalLimit: CentavosValue;
@@ -104,6 +104,7 @@ export interface Transaction {
   destinationAccountId?: string;
   cardId?: string;
   invoiceId?: string;
+  installmentsId?: string;
   type: TransactionType;
   amount: number;
   categoryId: string;
@@ -159,7 +160,7 @@ export type InstallmentStatus = "prevista" | "lancada" | "quitada";
 
 export interface Installment {
   installmentId: string;
-  user_id: string;
+  userId: string;
   cardId: string;
   purchaseDate: Date;
   totalAmount: number;
