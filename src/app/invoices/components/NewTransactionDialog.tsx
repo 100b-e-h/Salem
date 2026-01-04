@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -12,7 +12,8 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useAuth } from '@/components/AuthProvider';
 import { Card as CardType } from '@/types';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import { TagsInput } from '@/components/ui/TagsInput';
 
 const CATEGORIES = [
     { value: 'alimentacao', label: '🍔 Alimentação' },
@@ -35,161 +36,6 @@ interface NewTransactionDialogProps {
     selectedMonth: string;
 }
 
-interface SharedUser {
-    id: string;
-    email: string;
-    paid: boolean;
-}
-
-function SharedUsersDialog({ open, onClose, sharedUsers, onUpdate, currentUserId }: {
-    open: boolean;
-    onClose: () => void;
-    sharedUsers: SharedUser[];
-    onUpdate: (users: SharedUser[]) => void;
-    currentUserId?: string;
-}) {
-    const [emailSearch, setEmailSearch] = useState('');
-    const [searchResults, setSearchResults] = useState<Array<{ id: string; email: string; name?: string }>>([]);
-    const [isSearching, setIsSearching] = useState(false);
-
-    const searchUsers = async (email: string) => {
-        if (!email || email.length < 3) {
-            setSearchResults([]);
-            return;
-        }
-
-        setIsSearching(true);
-        try {
-            const response = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
-            if (response.ok) {
-                const data = await response.json();
-                const filtered = data.filter((u: { id: string; email: string }) =>
-                    u.id !== currentUserId && !sharedUsers.find(su => su.id === u.id)
-                );
-                setSearchResults(filtered);
-            }
-        } catch {
-            setSearchResults([]);
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const addSharedUser = (userToAdd: { id: string; email: string; name?: string }) => {
-        onUpdate([...sharedUsers, { id: userToAdd.id, email: userToAdd.email, paid: false }]);
-        setEmailSearch('');
-        setSearchResults([]);
-    };
-
-    const removeSharedUser = (userId: string) => {
-        onUpdate(sharedUsers.filter(u => u.id !== userId));
-    };
-
-    const toggleUserPaid = (userId: string) => {
-        onUpdate(sharedUsers.map(u =>
-            u.id === userId ? { ...u, paid: !u.paid } : u
-        ));
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md bg-card border-border shadow-lg z-[60]">
-                <DialogHeader>
-                    <DialogTitle>👥 Compartilhar Lançamento</DialogTitle>
-                    <DialogDescription>
-                        Adicione pessoas para dividir este gasto.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                    <div className="relative">
-                        <Input
-                            type="text"
-                            placeholder="Buscar por email..."
-                            value={emailSearch}
-                            onChange={e => {
-                                const value = e.target.value;
-                                setEmailSearch(value);
-                                if (value.length >= 3) {
-                                    searchUsers(value);
-                                } else {
-                                    setSearchResults([]);
-                                }
-                            }}
-                            className="bg-background border-border text-foreground"
-                        />
-                        {isSearching && (
-                            <div className="absolute right-3 top-3">
-                                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                            </div>
-                        )}
-                        {searchResults.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {searchResults.map(result => (
-                                    <button
-                                        key={result.id}
-                                        type="button"
-                                        onClick={() => addSharedUser(result)}
-                                        className="w-full px-4 py-2 text-left hover:bg-muted transition-colors text-foreground"
-                                    >
-                                        <div className="font-medium">{result.email}</div>
-                                        {result.name && (
-                                            <div className="text-xs text-muted-foreground">{result.name}</div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {sharedUsers.length > 0 ? (
-                        <div className="space-y-2">
-                            {sharedUsers.map(sharedUser => (
-                                <div
-                                    key={sharedUser.id}
-                                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                                >
-                                    <div className="flex items-center space-x-2 flex-1">
-                                        <span className="text-sm text-foreground font-medium">
-                                            {sharedUser.email}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleUserPaid(sharedUser.id)}
-                                            className={`text-xs px-2 py-1 rounded transition-colors ${sharedUser.paid
-                                                ? 'bg-green-500/20 text-green-700 dark:text-green-400'
-                                                : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
-                                                }`}
-                                        >
-                                            {sharedUser.paid ? '✅ Pago' : '⏳ Pendente'}
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeSharedUser(sharedUser.id)}
-                                        className="text-red-500 hover:text-red-700 transition-colors ml-2"
-                                        title="Remover"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                            Ninguém adicionado ainda.
-                        </p>
-                    )}
-
-                    <div className="flex justify-end">
-                        <Button onClick={onClose}>Concluído</Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 export function NewTransactionDialog({
     open,
     onClose,
@@ -202,17 +48,13 @@ export function NewTransactionDialog({
     const [amount, setAmount] = useState(0);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [category, setCategory] = useState('');
-    const [sharedUsers, setSharedUsers] = useState<SharedUser[]>([]);
-    const [emailSearch, setEmailSearch] = useState('');
-    const [searchResults, setSearchResults] = useState<Array<{ id: string; email: string; name?: string }>>([]);
-    const [isSearching, setIsSearching] = useState(false);
+    const [tags, setTags] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
     const [installments, setInstallments] = useState(1);
     const [mode, setMode] = useState<'single' | 'multiple' | 'csv'>('single');
     const [targetMonth, setTargetMonth] = useState(selectedMonth);
-    const [sharingRowId, setSharingRowId] = useState<string | null>(null);
     const [multipleTransactions, setMultipleTransactions] = useState<Array<{
         id: string;
         description: string;
@@ -221,7 +63,7 @@ export function NewTransactionDialog({
         category: string;
         targetMonth: string;
         installments: number;
-        sharedWith: SharedUser[];
+        tags: string[];
     }>>([]);
 
     React.useEffect(() => {
@@ -242,7 +84,7 @@ export function NewTransactionDialog({
             category: '',
             targetMonth: selectedMonth,
             installments: 1,
-            sharedWith: []
+            tags: []
         }]);
     };
 
@@ -280,7 +122,7 @@ export function NewTransactionDialog({
                         installments: t.installments,
                         invoiceMonth: month,
                         invoiceYear: year,
-                        sharedWith: t.sharedWith.length > 0 ? t.sharedWith : null,
+                        tags: t.tags.length > 0 ? t.tags : null,
                     }),
                 });
                 if (!response.ok) throw new Error('Failed to create transaction');
@@ -313,46 +155,6 @@ export function NewTransactionDialog({
         return options;
     }, []);
 
-    // Debounced user search
-    const searchUsers = useCallback(async (email: string) => {
-        if (!email || email.length < 3) {
-            setSearchResults([]);
-            return;
-        }
-
-        setIsSearching(true);
-        try {
-            const response = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
-            if (response.ok) {
-                const data = await response.json();
-                const filtered = data.filter((u: { id: string; email: string }) =>
-                    u.id !== user?.id && !sharedUsers.find(su => su.id === u.id)
-                );
-                setSearchResults(filtered);
-            }
-        } catch {
-            setSearchResults([]);
-        } finally {
-            setIsSearching(false);
-        }
-    }, [user?.id, sharedUsers]);
-
-    const addSharedUser = (userToAdd: { id: string; email: string; name?: string }) => {
-        setSharedUsers([...sharedUsers, { id: userToAdd.id, email: userToAdd.email, paid: false }]);
-        setEmailSearch('');
-        setSearchResults([]);
-    };
-
-    const removeSharedUser = (userId: string) => {
-        setSharedUsers(sharedUsers.filter(u => u.id !== userId));
-    };
-
-    const toggleUserPaid = (userId: string) => {
-        setSharedUsers(sharedUsers.map(u =>
-            u.id === userId ? { ...u, paid: !u.paid } : u
-        ));
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || isSubmitting) return;
@@ -377,7 +179,7 @@ export function NewTransactionDialog({
                     date,
                     category,
                     installments: paymentType === 'installment' ? installments : 1,
-                    sharedWith: sharedUsers.length > 0 ? sharedUsers : null,
+                    tags: tags.length > 0 ? tags : null,
                     invoiceMonth: month,
                     invoiceYear: year,
                 }),
@@ -389,9 +191,7 @@ export function NewTransactionDialog({
             setDescription('');
             setAmount(0);
             setCategory('');
-            setSharedUsers([]);
-            setEmailSearch('');
-            setSearchResults([]);
+            setTags([]);
             setDate(new Date().toISOString().split('T')[0]);
             setPaymentType('cash');
             setInstallments(1);
@@ -610,87 +410,17 @@ export function NewTransactionDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="emailSearch" className="text-foreground font-medium">
-                                👥 Compartilhar com (Opcional)
+                            <Label htmlFor="tags" className="text-foreground font-medium">
+                                🏷️ Tags (Opcional)
                             </Label>
-                            <div className="relative">
-                                <Input
-                                    id="emailSearch"
-                                    type="text"
-                                    placeholder="Buscar por email..."
-                                    value={emailSearch}
-                                    onChange={e => {
-                                        const value = e.target.value;
-                                        setEmailSearch(value);
-                                        if (value.length >= 3) {
-                                            searchUsers(value);
-                                        } else {
-                                            setSearchResults([]);
-                                        }
-                                    }}
-                                    className="bg-background border-border text-foreground"
-                                />
-                                {isSearching && (
-                                    <div className="absolute right-3 top-3">
-                                        <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                                    </div>
-                                )}
-                                {searchResults.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                        {searchResults.map(result => (
-                                            <button
-                                                key={result.id}
-                                                type="button"
-                                                onClick={() => addSharedUser(result)}
-                                                className="w-full px-4 py-2 text-left hover:bg-muted transition-colors text-foreground"
-                                            >
-                                                <div className="font-medium">{result.email}</div>
-                                                {result.name && (
-                                                    <div className="text-xs text-muted-foreground">{result.name}</div>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            <TagsInput
+                                value={tags}
+                                onChange={setTags}
+                                placeholder="Adicionar tags..."
+                            />
                             <p className="text-xs text-muted-foreground">
-                                Adicione pessoas que compartilham esse gasto (ex: dividir restaurante)
+                                Adicione tags para categorizar e filtrar seus gastos
                             </p>
-
-                            {sharedUsers.length > 0 && (
-                                <div className="space-y-2 mt-3">
-                                    {sharedUsers.map(sharedUser => (
-                                        <div
-                                            key={sharedUser.id}
-                                            className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                                        >
-                                            <div className="flex items-center space-x-2 flex-1">
-                                                <span className="text-sm text-foreground font-medium">
-                                                    {sharedUser.email}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleUserPaid(sharedUser.id)}
-                                                    className={`text-xs px-2 py-1 rounded transition-colors ${sharedUser.paid
-                                                        ? 'bg-green-500/20 text-green-700 dark:text-green-400'
-                                                        : 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
-                                                        }`}
-                                                >
-                                                    {sharedUser.paid ? '✅ Pago' : '⏳ Pendente'}
-                                                </button>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeSharedUser(sharedUser.id)}
-                                                className="text-red-500 hover:text-red-700 transition-colors ml-2"
-                                                title="Remover"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4 border-t border-border">
@@ -720,12 +450,12 @@ export function NewTransactionDialog({
                             <table className="w-full border-collapse">
                                 <thead className="sticky top-0 bg-card z-10">
                                     <tr>
-                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[25%]">Descrição</th>
-                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Valor</th>
-                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Data</th>
-                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[20%]">Categoria</th>
-                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Competência</th>
-                                        <th className="text-center p-2 text-sm font-medium text-muted-foreground w-[5%]">👥</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[20%]">Descrição</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[12%]">Valor</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[12%]">Data</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[15%]">Categoria</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[12%]">Competência</th>
+                                        <th className="text-left p-2 text-sm font-medium text-muted-foreground w-[24%]">🏷️ Tags</th>
                                         <th className="w-[5%]"></th>
                                     </tr>
                                 </thead>
@@ -781,22 +511,12 @@ export function NewTransactionDialog({
                                                     ))}
                                                 </select>
                                             </td>
-                                            <td className="p-1 text-center">
-                                                <Button
-                                                    type="button"
-                                                    variant={row.sharedWith.length > 0 ? "default" : "ghost"}
-                                                    size="sm"
-                                                    onClick={() => setSharingRowId(row.id)}
-                                                    className={`h-9 w-9 p-0 ${row.sharedWith.length > 0 ? '' : 'text-muted-foreground hover:text-foreground'}`}
-                                                    title={row.sharedWith.length > 0 ? `${row.sharedWith.length} pessoa(s)` : "Compartilhar"}
-                                                >
-                                                    <Users className="h-4 w-4" />
-                                                    {row.sharedWith.length > 0 && (
-                                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-                                                            {row.sharedWith.length}
-                                                        </span>
-                                                    )}
-                                                </Button>
+                                            <td className="p-1">
+                                                <TagsInput
+                                                    value={row.tags}
+                                                    onChange={(newTags: string[]) => handleRowChange(row.id, 'tags', newTags)}
+                                                    placeholder="Tags..."
+                                                />
                                             </td>
                                             <td className="p-1 text-center">
                                                 <Button
@@ -846,17 +566,8 @@ export function NewTransactionDialog({
                             </div>
                         </div>
                     </div>
-                )}
-
-                {sharingRowId && (
-                    <SharedUsersDialog
-                        open={!!sharingRowId}
-                        onClose={() => setSharingRowId(null)}
-                        sharedUsers={multipleTransactions.find(t => t.id === sharingRowId)?.sharedWith || []}
-                        onUpdate={(users) => handleRowChange(sharingRowId, 'sharedWith', users)}
-                        currentUserId={user?.id}
-                    />
-                )}
+                )
+                }
 
                 {mode === 'csv' && (
                     <form onSubmit={handleCsvImport} className="space-y-4">

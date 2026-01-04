@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { NewTransactionDialog } from './NewTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
 import { TransactionsTable } from './TransactionsTable';
+import { InvoiceFiltersPopover, type FilterState } from './InvoiceFiltersPopover';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -29,6 +30,17 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [filters, setFilters] = useState<FilterState>({
+        searchQuery: '',
+        startDate: '',
+        endDate: '',
+        minAmount: '',
+        maxAmount: '',
+        selectedTags: [],
+        selectedCategories: [],
+        minInstallments: '',
+        maxInstallments: '',
+    });
 
     const fetchTransactions = useCallback(async () => {
         if (!user || !selectedCard || !selectedMonth) return;
@@ -202,6 +214,70 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
 
         return Array.from(options.values()).sort((a, b) => b.value.localeCompare(a.value));
     }, [openInvoices, paidInvoices]);
+
+    // Filter transactions based on filter state
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(transaction => {
+            // Search query filter
+            if (filters.searchQuery) {
+                const query = filters.searchQuery.toLowerCase();
+                const matchesDescription = transaction.description?.toLowerCase().includes(query);
+                if (!matchesDescription) return false;
+            }
+
+            // Date range filter
+            if (filters.startDate || filters.endDate) {
+                const transactionDate = new Date(transaction.date);
+                if (filters.startDate) {
+                    const startDate = new Date(filters.startDate);
+                    if (transactionDate < startDate) return false;
+                }
+                if (filters.endDate) {
+                    const endDate = new Date(filters.endDate);
+                    endDate.setHours(23, 59, 59, 999);
+                    if (transactionDate > endDate) return false;
+                }
+            }
+
+            // Amount range filter
+            if (filters.minAmount) {
+                const minAmount = parseFloat(filters.minAmount) * 100;
+                if (Math.abs(transaction.amount) < minAmount) return false;
+            }
+            if (filters.maxAmount) {
+                const maxAmount = parseFloat(filters.maxAmount) * 100;
+                if (Math.abs(transaction.amount) > maxAmount) return false;
+            }
+
+            // Tags filter
+            if (filters.selectedTags.length > 0) {
+                if (!transaction.tags || !Array.isArray(transaction.tags)) return false;
+                const hasMatchingTag = filters.selectedTags.some(tag => transaction.tags?.includes(tag));
+                if (!hasMatchingTag) return false;
+            }
+
+            // Categories filter
+            if (filters.selectedCategories.length > 0) {
+                if (!transaction.category) return false;
+                if (!filters.selectedCategories.includes(transaction.category)) return false;
+            }
+
+            return true;
+        });
+    }, [transactions, filters]);
+
+    // Calculate active filter count
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (filters.searchQuery) count++;
+        if (filters.startDate) count++;
+        if (filters.endDate) count++;
+        if (filters.minAmount) count++;
+        if (filters.maxAmount) count++;
+        if (filters.selectedTags.length > 0) count++;
+        if (filters.selectedCategories.length > 0) count++;
+        return count;
+    }, [filters]);
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch (status) {
@@ -475,13 +551,12 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                     📋 Detalhamento Completo da Fatura
                                 </h3>
                                 <div className="flex space-x-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="border-border text-foreground hover:bg-muted"
-                                    >
-                                        🔍 Filtrar
-                                    </Button>
+                                    <InvoiceFiltersPopover
+                                        onFilterChange={setFilters}
+                                        activeFilterCount={activeFilterCount}
+                                        transactions={transactions}
+                                        showInstallmentFilter={false}
+                                    />
                                     <Button
                                         size="sm"
                                         onClick={() => setTransactionDialogOpen(true)}
@@ -493,8 +568,34 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                 </div>
                             </div>
 
+                            {activeFilterCount > 0 && (
+                                <div className="mb-4 flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                                    <span className="text-sm text-muted-foreground">
+                                        Mostrando <strong className="text-foreground">{filteredTransactions.length}</strong> de <strong className="text-foreground">{transactions.length}</strong> transações
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setFilters({
+                                            searchQuery: '',
+                                            startDate: '',
+                                            endDate: '',
+                                            minAmount: '',
+                                            maxAmount: '',
+                                            selectedTags: [],
+                                            selectedCategories: [],
+                                            minInstallments: '',
+                                            maxInstallments: '',
+                                        })}
+                                        className="text-xs"
+                                    >
+                                        🔄 Limpar Filtros
+                                    </Button>
+                                </div>
+                            )}
+
                             <TransactionsTable
-                                transactions={transactions}
+                                transactions={filteredTransactions}
                                 onEdit={handleEditTransaction}
                                 onDelete={handleDeleteTransaction}
                             />

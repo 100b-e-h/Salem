@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/MoneyInput';
+import { TagsInput } from '@/components/ui/TagsInput';
 import type { Transaction } from '@/types';
 
 type TxWithCat = Transaction & { category?: string };
@@ -26,6 +27,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
     const [amount, setAmount] = useState(0);
     const [date, setDate] = useState('');
     const [category, setCategory] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
     const [installments, setInstallments] = useState(1);
     const [financeType, setFinanceType] = useState<'upfront' | 'installment' | 'subscription'>('upfront');
     const [invoiceId, setInvoiceId] = useState('');
@@ -52,6 +54,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             setDate(transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '');
             const tx = transaction as TxWithCat;
             setCategory(tx.category || '');
+            setTags(transaction.tags || []);
             setInstallments(transaction.installments || 1);
             setFinanceType(transaction.financeType || 'upfront');
             setInvoiceId(transaction.invoiceId || '');
@@ -71,6 +74,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             setAmount(0);
             setDate('');
             setCategory('');
+            setTags([]);
             setInstallments(1);
             setFinanceType('upfront');
             setInvoiceId('');
@@ -98,6 +102,7 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                     amount,
                     date,
                     category,
+                    tags,
                     installments,
                     financeType,
                     invoiceId: invoiceId || null,
@@ -155,6 +160,15 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
                                 </option>
                             ))}
                         </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="tags">🏷️ Tags</Label>
+                        <TagsInput
+                            value={tags}
+                            onChange={setTags}
+                            placeholder="Adicionar tags (Enter para adicionar)..."
+                        />
                     </div>
 
                     <div className="space-y-2">
