@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Transaction } from '@/types';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 
 export interface FilterState {
     searchQuery: string;
@@ -189,28 +189,26 @@ export const InvoiceFiltersPopover: React.FC<InvoiceFiltersPopoverProps> = ({
                             <Label htmlFor="minAmount" className="text-sm font-medium text-foreground">
                                 💰 Valor Mínimo
                             </Label>
-                            <Input
+                            <MoneyInput
                                 id="minAmount"
-                                type="number"
-                                placeholder="0.00"
+                                placeholder="0,00"
                                 value={filters.minAmount}
-                                onChange={(e) => handleFilterUpdate('minAmount', e.target.value)}
+                                onChange={(value) => handleFilterUpdate('minAmount', value)}
                                 className="bg-background border-border text-foreground"
-                                step="0.01"
+                                currency="R$"
                             />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="maxAmount" className="text-sm font-medium text-foreground">
                                 💰 Valor Máximo
                             </Label>
-                            <Input
+                            <MoneyInput
                                 id="maxAmount"
-                                type="number"
-                                placeholder="0.00"
+                                placeholder="0,00"
                                 value={filters.maxAmount}
-                                onChange={(e) => handleFilterUpdate('maxAmount', e.target.value)}
+                                onChange={(value) => handleFilterUpdate('maxAmount', value)}
                                 className="bg-background border-border text-foreground"
-                                step="0.01"
+                                currency="R$"
                             />
                         </div>
                     </div>
