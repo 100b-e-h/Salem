@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/MoneyInput';
+import { TagsInput } from '@/components/ui/TagsInput';
 import { Badge } from '@/components/ui/Badge';
 import type { Transaction } from '@/types';
 
@@ -38,6 +39,7 @@ export const EditInstallmentDialog: React.FC<EditInstallmentDialogProps> = ({
     const [amount, setAmount] = useState(0);
     const [date, setDate] = useState('');
     const [category, setCategory] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     const CATEGORIES = [
@@ -61,11 +63,13 @@ export const EditInstallmentDialog: React.FC<EditInstallmentDialogProps> = ({
             setDate(transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '');
             const tx = transaction as TxWithCat;
             setCategory(tx.category || '');
+            setTags(transaction.tags || []);
         } else {
             setDescription('');
             setAmount(0);
             setDate('');
             setCategory('');
+            setTags([]);
         }
     }, [transaction]);
 
@@ -94,6 +98,7 @@ export const EditInstallmentDialog: React.FC<EditInstallmentDialogProps> = ({
                     amount,
                     date,
                     category,
+                    tags,
                     updateAllInstallments: true, // Flag to update all related installments
                 }),
             });
@@ -191,6 +196,15 @@ export const EditInstallmentDialog: React.FC<EditInstallmentDialogProps> = ({
                         </select>
                     </div>
 
+                    <div className="space-y-2">
+                        <Label htmlFor="tags">🏷️ Tags</Label>
+                        <TagsInput
+                            value={tags}
+                            onChange={setTags}
+                            placeholder="Adicionar tags (Enter para adicionar)..."
+                        />
+                    </div>
+
                     {transaction && (
                         <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                             <h4 className="text-sm font-medium text-foreground">📊 Informações do Parcelamento</h4>
@@ -202,7 +216,7 @@ export const EditInstallmentDialog: React.FC<EditInstallmentDialogProps> = ({
                                 <div>
                                     <span className="text-muted-foreground">Valor Total:</span>
                                     <p className="font-semibold text-foreground">
-                                        {((amount * transaction.installments) / 100).toLocaleString('pt-BR', {
+                                        {((amount * (transaction.installments || 1)) / 100).toLocaleString('pt-BR', {
                                             style: 'currency',
                                             currency: 'BRL'
                                         })}
