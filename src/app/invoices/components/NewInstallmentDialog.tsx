@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { MoneyInput } from '@/components/ui/MoneyInput';
+import { TagsInput } from '@/components/ui/TagsInput';
 import { Card as CardType } from '@/types';
 
 const CATEGORIES = [
@@ -35,10 +37,11 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [formData, setFormData] = useState({
         description: '',
-        installmentAmount: '',
+        installmentAmountCentavos: 0,
         installments: '2',
         categoryId: 'outros',
         purchaseDate: new Date().toISOString().split('T')[0],
+        tags: [] as string[]
     });
 
     React.useEffect(() => {
@@ -64,12 +67,14 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     };
 
     const calculateTotalValue = () => {
-        if (formData.installmentAmount && formData.installments) {
-            const installmentValue = parseFloat(formData.installmentAmount);
-            const installmentCount = parseInt(formData.installments);
-            return (installmentValue * installmentCount).toFixed(2);
+        if (formData.installmentAmountCentavos && formData.installments) {
+            const totalCentavos = formData.installmentAmountCentavos * parseInt(formData.installments);
+            return (totalCentavos / 100).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
         }
-        return '0.00';
+        return '0,00';
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -78,7 +83,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
         try {
             // Criar transação parcelada
-            const totalAmount = parseFloat(formData.installmentAmount) * parseInt(formData.installments);
+            const totalAmount = (formData.installmentAmountCentavos * parseInt(formData.installments)) / 100;
             const [year, month] = selectedMonth.split('-').map(Number);
             
             const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
@@ -94,6 +99,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                     date: formData.purchaseDate,
                     invoiceMonth: month,
                     invoiceYear: year,
+                    tags: formData.tags,
                 }),
             });
 
@@ -109,10 +115,11 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
             setSelectedMonth('');
             setFormData({
                 description: '',
-                installmentAmount: '',
+                installmentAmountCentavos: 0,
                 installments: '2',
                 categoryId: 'outros',
                 purchaseDate: new Date().toISOString().split('T')[0],
+                tags: []
             });
         } catch (error) {
             console.error(error);
@@ -164,15 +171,12 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium mb-2">
-                                Valor da Parcela (R$)
+                                Valor da Parcela
                             </label>
-                            <input
-                                type="number"
-                                step="0.01"
+                            <MoneyInput
                                 required
-                                value={formData.installmentAmount}
-                                onChange={(e) => setFormData(prev => ({ ...prev, installmentAmount: e.target.value }))}
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                initialCentavos={formData.installmentAmountCentavos}
+                                onValueChange={(centavos) => setFormData(prev => ({ ...prev, installmentAmountCentavos: centavos }))}
                                 placeholder="0,00"
                             />
                         </div>
@@ -229,6 +233,17 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                     </option>
                                 ))}
                             </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Tags
+                            </label>
+                            <TagsInput
+                                value={formData.tags}
+                                onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+                                placeholder="Adicionar tags (Enter para adicionar)..."
+                            />
                         </div>
 
                         <div className="flex space-x-3 pt-4">
