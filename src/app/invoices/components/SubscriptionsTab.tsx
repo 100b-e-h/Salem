@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card as CardType } from '@/types';
 import { TransactionsTable } from './TransactionsTable';
 import { NewSubscriptionDialog } from './NewSubscriptionDialog';
+import { EditTransactionDialog } from './EditTransactionDialog';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -21,6 +22,8 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     const [loading, setLoading] = useState(true);
     const [subscriptions, setSubscriptions] = useState<Transaction[]>([]);
     const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     const fetchSubscriptions = useCallback(async () => {
         if (!user || !selectedCard) return;
@@ -41,13 +44,18 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
         fetchSubscriptions();
     }, [fetchSubscriptions, subscriptionDialogOpen]);
 
+    const handleEditTransaction = (tx: Transaction) => {
+        setEditingTransaction(tx);
+        setEditDialogOpen(true);
+    };
+
     const handleDeleteSubscription = async (tx: Transaction) => {
         if (!confirm(`Tem certeza que deseja cancelar a assinatura "${tx.description}"?`)) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/transactions/${tx.id}`, {
+            const response = await fetch(`/api/transactions/${tx.transactionId}`, {
                 method: 'DELETE',
             });
 
@@ -113,15 +121,26 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     return (
         <div className="space-y-6">
             {selectedCardData && (
-                <NewSubscriptionDialog
-                    open={subscriptionDialogOpen}
-                    onClose={() => setSubscriptionDialogOpen(false)}
-                    onSubscriptionCreated={() => {
-                        fetchSubscriptions();
-                        loadCards();
-                    }}
-                    card={selectedCardData}
-                />
+                <>
+                    <NewSubscriptionDialog
+                        open={subscriptionDialogOpen}
+                        onClose={() => setSubscriptionDialogOpen(false)}
+                        onSubscriptionCreated={() => {
+                            fetchSubscriptions();
+                            loadCards();
+                        }}
+                        card={selectedCardData}
+                    />
+                    <EditTransactionDialog
+                        open={editDialogOpen}
+                        onOpenChange={(open) => setEditDialogOpen(open)}
+                        transaction={editingTransaction}
+                        onSaved={() => {
+                            fetchSubscriptions();
+                            loadCards();
+                        }}
+                    />
+                </>
             )}
 
             <div className="flex items-center justify-between">
@@ -239,7 +258,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                     ) : (
                                         <TransactionsTable
                                             transactions={subscriptions}
-                                            onEdit={() => { }} // Placeholder - assinaturas podem não ser editáveis
+                                            onEdit={handleEditTransaction}
                                             onDelete={handleDeleteSubscription}
                                         />
                                     )}
