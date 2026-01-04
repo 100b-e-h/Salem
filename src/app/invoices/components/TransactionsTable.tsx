@@ -1,6 +1,7 @@
 import React from "react";
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import type { Transaction as TxType } from '@/types';
 
 type TxWithCategory = TxType & { category?: string; categoryId?: string };
@@ -39,6 +40,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                         <th className="px-3 py-2 text-left font-semibold text-foreground">Data</th>
                         <th className="px-3 py-2 text-left font-semibold text-foreground">Descrição</th>
                         <th className="px-3 py-2 text-left font-semibold text-foreground">Categoria</th>
+                        <th className="px-3 py-2 text-left font-semibold text-foreground">🏷️ Tags</th>
                         <th className="px-3 py-2 text-left font-semibold text-foreground">Tipo de Pagamento</th>
                         <th className="px-3 py-2 text-right font-semibold text-foreground">Valor</th>
                         <th className="px-3 py-2 text-center font-semibold text-foreground">Ações</th>
@@ -47,7 +49,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                 <tbody>
                     {transactions.length === 0 ? (
                         <tr>
-                            <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                            <td colSpan={7} className="text-center py-8 text-muted-foreground">
                                 Nenhum lançamento encontrado para esta fatura.
                             </td>
                         </tr>
@@ -57,6 +59,24 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                                 <td className="px-3 py-2 whitespace-nowrap">{new Date(tx.date).toLocaleDateString()}</td>
                                 <td className="px-3 py-2 max-w-xs truncate">{tx.description}</td>
                                 <td className="px-3 py-2">{getCategoryLabel(tx)}</td>
+                                <td className="px-3 py-2">
+                                    <div className="flex flex-wrap gap-1">
+                                        {tx.tags && tx.tags.length > 0 ? (
+                                            tx.tags.slice(0, 3).map((tag, idx) => (
+                                                <Badge key={idx} variant="secondary" className="text-xs px-2 py-0.5">
+                                                    {tag}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <span className="text-muted-foreground text-xs">-</span>
+                                        )}
+                                        {tx.tags && tx.tags.length > 3 && (
+                                            <Badge variant="outline" className="text-xs px-2 py-0.5">
+                                                +{tx.tags.length - 3}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </td>
                                 <td className="px-3 py-2">{getFinanceTypeLabel(tx)}</td>
                                 <td className="px-3 py-2 text-right">
                                     <CurrencyDisplay amount={tx.amount} />
