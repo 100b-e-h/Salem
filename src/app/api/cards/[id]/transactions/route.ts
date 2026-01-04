@@ -274,7 +274,7 @@ export async function POST(
             category: validatedData.category || null,
             installments: validatedData.installments,
             currentInstallment: i + 1,
-            sharedWith: validatedData.sharedWith || null,
+            tags: validatedData.tags || [],
             financeType: "installment",
             invoiceId: invoice.invoiceId,
             installmentsId: installmentBase.installmentId, // Referência ao registro base
@@ -361,7 +361,7 @@ export async function POST(
         category: validatedData.category || null,
         installments: 1,
         currentInstallment: 1,
-        sharedWith: validatedData.sharedWith || null,
+        tags: validatedData.tags || [],
         financeType: validatedData.financeType || "upfront", // Use financeType from request or default to upfront
         invoiceId: invoice.invoiceId,
       })

@@ -35,7 +35,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { description, amount, date, category, installments, financeType, invoiceId, updateAllInstallments } = body;
+    const { description, amount, date, category, installments, financeType, invoiceId, updateAllInstallments, tags } = body;
 
     if (
       !description &&
@@ -44,7 +44,8 @@ export async function PATCH(
       !category &&
       !installments &&
       !financeType &&
-      invoiceId === undefined
+      invoiceId === undefined &&
+      !tags
     ) {
       return NextResponse.json(
         { error: "No fields to update" },
@@ -81,6 +82,7 @@ export async function PATCH(
           ...(amount !== undefined ? { installmentAmount: Number(amount) } : {}),
           ...(date !== undefined ? { date } : {}),
           ...(category !== undefined ? { category } : {}),
+          ...(tags !== undefined ? { tags } : {}),
           updatedAt: new Date().toISOString(),
         })
         .where(
@@ -123,6 +125,7 @@ export async function PATCH(
             ...(description !== undefined ? { description: updatedDescription } : {}),
             ...(amount !== undefined ? { amount: Number(amount) } : {}),
             ...(category !== undefined ? { category } : {}),
+            ...(tags !== undefined ? { tags } : {}),
             // Nota: data não é atualizada nas parcelas individuais para manter a sequência mensal
             updatedAt: new Date().toISOString(),
           })
@@ -153,6 +156,7 @@ export async function PATCH(
           ...(amount !== undefined ? { amount: Number(amount) } : {}),
           ...(date !== undefined ? { date } : {}),
           ...(category !== undefined ? { category } : {}),
+          ...(tags !== undefined ? { tags } : {}),
           ...(installments !== undefined
             ? { 
                 installments: Number(installments),
