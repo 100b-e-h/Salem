@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card as CardType } from '@/types';
 import { TransactionsTable } from './TransactionsTable';
 import { NewInstallmentDialog } from './NewInstallmentDialog';
+import { MultiCardSelector } from './MultiCardSelector';
 import { EditInstallmentDialog } from './EditInstallmentDialog';
 import { InvoiceFiltersPopover, type FilterState } from './InvoiceFiltersPopover';
 import type { Transaction } from '@/types';
@@ -19,7 +20,7 @@ interface InstallmentsTabProps {
 
 export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     const [cards, setCards] = useState<CardType[]>([]);
-    const [selectedCard, setSelectedCard] = useState<string>('');
+    const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [installments, setInstallments] = useState<Transaction[]>([]);
     const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
@@ -38,19 +39,24 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     });
 
     const fetchInstallments = useCallback(async () => {
-        if (!user || !selectedCard) return;
+        if (!user) return;
+        if (selectedCardIds.length === 0) {
+            setInstallments([]);
+            return;
+        }
 
-        const res = await fetch(`/api/cards/${selectedCard}/transactions`);
+        // Use multi-card API with cardIds parameter
+        const cardIdsParam = selectedCardIds.join(',');
+        const endpoint = `/api/cards/all/transactions?financeType=installment&cardIds=${cardIdsParam}`;
+        
+        const res = await fetch(endpoint);
         if (res.ok) {
             const all: Transaction[] = await res.json();
-            // Filtrar apenas transações que têm finance_type = 'installment'
-            setInstallments(
-                all.filter((t) => t.financeType === 'installment')
-            );
+            setInstallments(all);
         } else {
             setInstallments([]);
         }
-    }, [user, selectedCard]);
+    }, [user, selectedCardIds]);
 
     useEffect(() => {
         fetchInstallments();
@@ -111,13 +117,21 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
     }, [user, loadCards]);
 
     useEffect(() => {
-        if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].cardId);
+        if (cards.length > 0 && selectedCardIds.length === 0) {
+            // Select all cards by default
+            setSelectedCardIds(cards.map(c => c.cardId));
         }
-    }, [cards, selectedCard]);
+    }, [cards, selectedCardIds]);
+
+    const getSelectedCards = () => {
+        return cards.filter(card => selectedCardIds.includes(card.cardId));
+    };
 
     const getSelectedCard = () => {
-        return cards.find(card => card.cardId === selectedCard);
+        // Return first selected card for dialog purposes
+        return selectedCardIds.length === 1 
+            ? cards.find(card => card.cardId === selectedCardIds[0])
+            : undefined;
     };
 
     // Filter installments based on filter state
@@ -196,7 +210,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
         return count;
     }, [filters]);
 
-    const totalInstallmentsValue = installments.reduce((sum, installment) => sum + installment.amount, 0);
+    const totalInstallmentsValue = filteredInstallments.reduce((sum, installment) => sum + installment.amount, 0);
 
     if (loading) {
         return (
@@ -238,7 +252,7 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                 <h2 className="text-xl font-semibold text-foreground">💳 Compras Parceladas</h2>
                 <Button
                     onClick={() => setInstallmentDialogOpen(true)}
-                    disabled={!selectedCardData}
+                    disabled={!selectedCardData || selectedCardIds.length !== 1}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
                 >
                     <span className="mr-2">+</span>
@@ -264,24 +278,18 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                         <div className="p-6">
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-foreground">
-                                    💳 Cartão
+                                    💳 Selecione os Cartões
                                 </label>
-                                <select
-                                    value={selectedCard}
-                                    onChange={(e) => setSelectedCard(e.target.value)}
-                                    className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                >
-                                    {cards.map((card) => (
-                                        <option key={card.cardId} value={card.cardId}>
-                                            {card.alias} - {card.brand}
-                                        </option>
-                                    ))}
-                                </select>
+                                <MultiCardSelector
+                                    cards={cards}
+                                    selectedCardIds={selectedCardIds}
+                                    onSelectionChange={setSelectedCardIds}
+                                />
                             </div>
                         </div>
                     </Card>
 
-                    {selectedCardData && (
+                    {selectedCardIds.length > 0 && (
                         <>
                             <Card className="bg-card border-border shadow-md">
                                 <div className="p-6">
@@ -290,10 +298,10 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                             <div className="text-2xl">💳</div>
                                             <div>
                                                 <h2 className="text-xl font-semibold text-foreground">
-                                                    Parcelamentos - {selectedCardData.alias}
+                                                    Parcelamentos - {selectedCardIds.length === cards.length ? 'Todos os Cartões' : selectedCardIds.length === 1 ? selectedCardData?.alias : `${selectedCardIds.length} Cartões`}
                                                 </h2>
                                                 <p className="text-muted-foreground">
-                                                    {selectedCardData.brand} • Compras a prazo
+                                                    {selectedCardIds.length === 1 && selectedCardData ? `${selectedCardData.brand} • Compras a prazo` : `${getSelectedCards().length} cartão${getSelectedCards().length > 1 ? 'ões' : ''} • Compras a prazo`}
                                                 </p>
                                             </div>
                                         </div>
@@ -322,6 +330,25 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
                                             </div>
                                         </div>
                                     </div>
+
+                                    {selectedCardIds.length > 1 && (
+                                        <div className="mt-6 pt-4 border-t border-border">
+                                            <div className="text-sm text-muted-foreground mb-3">
+                                                Cartões incluídos nesta visualização:
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {getSelectedCards().map((card) => (
+                                                    <Badge 
+                                                        key={card.cardId} 
+                                                        variant="outline"
+                                                        className="px-3 py-1 bg-muted/50"
+                                                    >
+                                                        {card.alias} • {card.brand}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </Card>
 
