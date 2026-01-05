@@ -32,7 +32,7 @@ interface NewTransactionDialogProps {
     open: boolean;
     onClose: () => void;
     onTransactionCreated: () => void;
-    card: CardType;
+    card?: CardType; // Optional - if not provided, user must select a card
     selectedMonth: string;
 }
 
@@ -44,6 +44,8 @@ export function NewTransactionDialog({
     selectedMonth
 }: NewTransactionDialogProps) {
     const { user } = useAuth();
+    const [cards, setCards] = useState<CardType[]>([]);
+    const [selectedCardId, setSelectedCardId] = useState<string>(card?.cardId || '');
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState(0);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -72,8 +74,30 @@ export function NewTransactionDialog({
             if (mode === 'multiple' && multipleTransactions.length === 0) {
                 handleAddRow();
             }
+            // Fetch cards if card prop is not provided
+            if (!card) {
+                fetchCards();
+            } else {
+                setSelectedCardId(card.cardId);
+            }
         }
-    }, [open, selectedMonth, mode]);
+    }, [open, selectedMonth, mode, card]);
+
+    const fetchCards = async () => {
+        try {
+            const res = await fetch('/api/cards');
+            if (res.ok) {
+                const data = await res.json();
+                setCards(data);
+                // If no card is pre-selected, don't auto-select
+                if (!card && !selectedCardId && data.length > 0) {
+                    // Leave blank for user to select
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch cards', error);
+        }
+    };
 
     const handleAddRow = () => {
         setMultipleTransactions(prev => [...prev, {
@@ -159,6 +183,12 @@ export function NewTransactionDialog({
         e.preventDefault();
         if (!user || isSubmitting) return;
 
+        // Validação do cartão selecionado
+        if (!selectedCardId) {
+            alert('Por favor, selecione um cartão.');
+            return;
+        }
+
         // Validação obrigatória da categoria
         if (!category) {
             alert('Por favor, selecione uma categoria para o lançamento.');
@@ -168,7 +198,7 @@ export function NewTransactionDialog({
         setIsSubmitting(true);
         try {
             const [year, month] = targetMonth.split('-').map(Number);
-            const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
+            const response = await fetch(`/api/cards/${selectedCardId}/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -210,13 +240,18 @@ export function NewTransactionDialog({
         e.preventDefault();
         if (!csvFile || !user || isSubmitting) return;
 
+        if (!selectedCardId) {
+            alert('Por favor, selecione um cartão.');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const formData = new FormData();
             formData.append('file', csvFile);
-            formData.append('cardId', card.cardId);
+            formData.append('cardId', selectedCardId);
 
-            const response = await fetch(`/api/cards/${card.cardId}/transactions/import`, {
+            const response = await fetch(`/api/cards/${selectedCardId}/transactions/import`, {
                 method: 'POST',
                 body: formData,
             });
@@ -243,7 +278,11 @@ export function NewTransactionDialog({
                         💳 Novo Lançamento
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground mt-2">
-                        Cartão: <span className="font-semibold text-foreground">{card.alias}</span>
+                        {card ? (
+                            <>Cartão: <span className="font-semibold text-foreground">{card.alias}</span></>
+                        ) : (
+                            'Selecione um cartão para criar o lançamento'
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -276,6 +315,28 @@ export function NewTransactionDialog({
 
                 {mode === 'single' && (
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {!card && (
+                            <div className="space-y-2">
+                                <Label htmlFor="cardSelect" className="text-foreground font-medium">
+                                    🏦 Lançar no Cartão *
+                                </Label>
+                                <select
+                                    id="cardSelect"
+                                    value={selectedCardId}
+                                    onChange={(e) => setSelectedCardId(e.target.value)}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    required
+                                >
+                                    <option value="">Selecione um cartão...</option>
+                                    {cards.map((c) => (
+                                        <option key={c.cardId} value={c.cardId}>
+                                            {c.alias} - {c.brand}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        
                         <div className="space-y-2">
                             <Label htmlFor="description" className="text-foreground font-medium">
                                 Descrição
@@ -571,6 +632,28 @@ export function NewTransactionDialog({
 
                 {mode === 'csv' && (
                     <form onSubmit={handleCsvImport} className="space-y-4">
+                        {!card && (
+                            <div className="space-y-2">
+                                <Label htmlFor="cardSelectCsv" className="text-foreground font-medium">
+                                    🏦 Lançar no Cartão *
+                                </Label>
+                                <select
+                                    id="cardSelectCsv"
+                                    value={selectedCardId}
+                                    onChange={(e) => setSelectedCardId(e.target.value)}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    required
+                                >
+                                    <option value="">Selecione um cartão...</option>
+                                    {cards.map((c) => (
+                                        <option key={c.cardId} value={c.cardId}>
+                                            {c.alias} - {c.brand}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        
                         <div className="space-y-2">
                             <Label htmlFor="csv" className="text-foreground font-medium">
                                 Arquivo CSV
