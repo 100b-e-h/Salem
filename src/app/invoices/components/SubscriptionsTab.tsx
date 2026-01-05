@@ -10,6 +10,7 @@ import { TransactionsTable } from './TransactionsTable';
 import { NewSubscriptionDialog } from './NewSubscriptionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
 import { InvoiceFiltersPopover, type FilterState } from './InvoiceFiltersPopover';
+import { MultiCardSelector } from './MultiCardSelector';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -19,7 +20,7 @@ interface SubscriptionsTabProps {
 
 export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     const [cards, setCards] = useState<CardType[]>([]);
-    const [selectedCard, setSelectedCard] = useState<string>('');
+    const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [subscriptions, setSubscriptions] = useState<Transaction[]>([]);
     const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
@@ -38,19 +39,23 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     });
 
     const fetchSubscriptions = useCallback(async () => {
-        if (!user || !selectedCard) return;
+        if (!user) return;
+        if (selectedCardIds.length === 0) {
+            setSubscriptions([]);
+            return;
+        }
 
-        const res = await fetch(`/api/cards/${selectedCard}/transactions`);
+        const cardIdsParam = selectedCardIds.join(',');
+        const endpoint = `/api/cards/all/transactions?financeType=subscription&cardIds=${cardIdsParam}`;
+        
+        const res = await fetch(endpoint);
         if (res.ok) {
             const all: Transaction[] = await res.json();
-            // Filtrar apenas transações que são assinaturas (finance_type = 'subscription')
-            setSubscriptions(
-                all.filter((t) => t.financeType === 'subscription')
-            );
+            setSubscriptions(all);
         } else {
             setSubscriptions([]);
         }
-    }, [user, selectedCard]);
+    }, [user, selectedCardIds]);
 
     useEffect(() => {
         fetchSubscriptions();
@@ -108,13 +113,19 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
     }, [user, loadCards]);
 
     useEffect(() => {
-        if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].cardId);
+        if (cards.length > 0 && selectedCardIds.length === 0) {
+            setSelectedCardIds(cards.map(c => c.cardId));
         }
-    }, [cards, selectedCard]);
+    }, [cards, selectedCardIds.length]);
+
+    const getSelectedCards = () => {
+        return cards.filter(card => selectedCardIds.includes(card.cardId));
+    };
 
     const getSelectedCard = () => {
-        return cards.find(card => card.cardId === selectedCard);
+        return selectedCardIds.length === 1 
+            ? cards.find(card => card.cardId === selectedCardIds[0])
+            : undefined;
     };
 
     // Filter subscriptions based on filter state
@@ -181,7 +192,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
         return count;
     }, [filters]);
 
-    const totalSubscriptionsValue = subscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
+    const totalSubscriptionsValue = filteredSubscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
 
     if (loading) {
         return (
@@ -223,7 +234,7 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                 <h2 className="text-xl font-semibold text-foreground">🔄 Assinaturas</h2>
                 <Button
                     onClick={() => setSubscriptionDialogOpen(true)}
-                    disabled={!selectedCardData}
+                    disabled={selectedCardIds.length !== 1}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
                 >
                     <span className="mr-2">+</span>
@@ -249,24 +260,18 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                         <div className="p-6">
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-foreground">
-                                    💳 Cartão
+                                    💳 Cartões
                                 </label>
-                                <select
-                                    value={selectedCard}
-                                    onChange={(e) => setSelectedCard(e.target.value)}
-                                    className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                >
-                                    {cards.map((card) => (
-                                        <option key={card.cardId} value={card.cardId}>
-                                            {card.alias} - {card.brand}
-                                        </option>
-                                    ))}
-                                </select>
+                                <MultiCardSelector
+                                    cards={cards}
+                                    selectedCardIds={selectedCardIds}
+                                    onSelectionChange={setSelectedCardIds}
+                                />
                             </div>
                         </div>
                     </Card>
 
-                    {selectedCardData && (
+                    {selectedCardIds.length > 0 && (
                         <>
                             <Card className="bg-card border-border shadow-md">
                                 <div className="p-6">
@@ -275,10 +280,10 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                             <div className="text-2xl">🔄</div>
                                             <div>
                                                 <h2 className="text-xl font-semibold text-foreground">
-                                                    Assinaturas - {selectedCardData.alias}
+                                                    Assinaturas - {selectedCardIds.length === 1 && selectedCardData ? selectedCardData.alias : `${selectedCardIds.length} Cartões`}
                                                 </h2>
                                                 <p className="text-muted-foreground">
-                                                    {selectedCardData.brand} • Serviços recorrentes
+                                                    {selectedCardIds.length === 1 && selectedCardData ? `${selectedCardData.brand} • Serviços recorrentes` : 'Consolidado • Serviços recorrentes'}
                                                 </p>
                                             </div>
                                         </div>
@@ -307,6 +312,25 @@ export const SubscriptionsTab: React.FC<SubscriptionsTabProps> = ({ user }) => {
                                             </div>
                                         </div>
                                     </div>
+
+                                    {selectedCardIds.length > 1 && (
+                                        <div className="mt-6 pt-4 border-t border-border">
+                                            <div className="text-sm text-muted-foreground mb-3">
+                                                Cartões incluídos nesta visualização:
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {getSelectedCards().map((card) => (
+                                                    <Badge 
+                                                        key={card.cardId} 
+                                                        variant="outline"
+                                                        className="px-3 py-1 bg-muted/50"
+                                                    >
+                                                        {card.alias} • {card.brand}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </Card>
 
