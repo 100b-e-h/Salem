@@ -24,7 +24,7 @@ interface NewInstallmentDialogProps {
     open: boolean;
     onClose: () => void;
     onInstallmentCreated: () => void;
-    card: CardType;
+    card?: CardType; // Optional - if not provided, user must select a card
 }
 
 export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
@@ -34,6 +34,8 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     card
 }) => {
     const [loading, setLoading] = useState(false);
+    const [cards, setCards] = useState<CardType[]>([]);
+    const [selectedCardId, setSelectedCardId] = useState<string>(card?.cardId || '');
     const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [formData, setFormData] = useState({
         description: '',
@@ -49,7 +51,27 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
             const currentMonth = new Date();
             setSelectedMonth(`${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`);
         }
-    }, [selectedMonth, open]);
+
+        // Fetch cards if card prop is not provided
+        if (!card && open) {
+            fetchCards();
+        } else if (card) {
+            setSelectedCardId(card.cardId);
+        }
+    }, [selectedMonth, open, card]);
+
+    const fetchCards = async () => {
+        try {
+            const res = await fetch('/api/cards');
+            if (res.ok) {
+                const data = await res.json();
+                setCards(data);
+                // Don't auto-select - let user choose
+            }
+        } catch (error) {
+            console.error('Failed to fetch cards', error);
+        }
+    };
 
     const getMonthOptions = () => {
         const options = [];
@@ -81,12 +103,18 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
         e.preventDefault();
         setLoading(true);
 
+        if (!selectedCardId) {
+            alert('Por favor, selecione um cartão.');
+            setLoading(false);
+            return;
+        }
+
         try {
             // Criar transação parcelada
             const totalAmount = (formData.installmentAmountCentavos * parseInt(formData.installments)) / 100;
             const [year, month] = selectedMonth.split('-').map(Number);
             
-            const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
+            const response = await fetch(`/api/cards/${selectedCardId}/transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -135,9 +163,32 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
         <Dialog open={open} onOpenChange={onClose}>
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                 <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <h2 className="text-xl font-semibold mb-4">📊 Nova Compra Parcelada - {card.alias}</h2>
+                    <h2 className="text-xl font-semibold mb-4">
+                        📊 Nova Compra Parcelada {card ? `- ${card.alias}` : ''}
+                    </h2>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {!card && (
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    🏦 Lançar no Cartão *
+                                </label>
+                                <select
+                                    value={selectedCardId}
+                                    onChange={(e) => setSelectedCardId(e.target.value)}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                    required
+                                >
+                                    <option value="">Selecione um cartão...</option>
+                                    {cards.map(c => (
+                                        <option key={c.cardId} value={c.cardId}>
+                                            {c.alias} - {c.brand}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        
                         <div>
                             <label className="block text-sm font-medium mb-2">
                                 Descrição da Compra
