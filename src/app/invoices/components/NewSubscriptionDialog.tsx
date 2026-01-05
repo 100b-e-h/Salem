@@ -73,10 +73,7 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
                     if (res.ok) {
                         const data = await res.json();
                         setCards(data);
-                        if (data.length > 0 && !selectedCardId) {
-                            setSelectedCardId(data[0].cardId);
-                            setFormData(prev => ({ ...prev, chargeDay: data[0].dueDay.toString() }));
-                        }
+                        // Don't auto-select - let user choose
                     }
                 } catch (error) {
                     console.error('Failed to fetch cards', error);
@@ -84,7 +81,7 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
             };
             fetchCards();
         }
-    }, [card, open, selectedCardId]);
+    }, [card, open]);
 
     // Update form when card prop changes
     useEffect(() => {
@@ -174,7 +171,7 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
                         {!card && (
                              <div>
                                 <label className="block text-sm font-medium mb-2">
-                                    Cartão
+                                    🏦 Lançar no Cartão *
                                 </label>
                                 <select
                                     value={selectedCardId}
@@ -182,7 +179,7 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
                                     className="w-full px-3 py-2 border border-border rounded-lg bg-background"
                                     required
                                 >
-                                    <option value="" disabled>Selecione um cartão</option>
+                                    <option value="" disabled>Selecione um cartão...</option>
                                     {cards.map(c => (
                                         <option key={c.cardId} value={c.cardId}>{c.alias} - {c.brand}</option>
                                     ))}
