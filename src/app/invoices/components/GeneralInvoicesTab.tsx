@@ -12,6 +12,7 @@ import { NewTransactionDialog } from './NewTransactionDialog';
 import { EditTransactionDialog } from './EditTransactionDialog';
 import { TransactionsTable } from './TransactionsTable';
 import { InvoiceFiltersPopover, type FilterState } from './InvoiceFiltersPopover';
+import { MultiCardSelector } from './MultiCardSelector';
 import type { Transaction } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -22,7 +23,7 @@ interface GeneralInvoicesTabProps {
 export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) => {
     const [cards, setCards] = useState<CardType[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [selectedCard, setSelectedCard] = useState<string>('');
+    const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
     const [selectedMonth, setSelectedMonth] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
@@ -43,8 +44,28 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
     });
 
     const fetchTransactions = useCallback(async () => {
-        if (!user || !selectedCard || !selectedMonth) return;
+        if (!user || !selectedMonth) return;
+        if (selectedCardIds.length === 0) {
+            setTransactions([]);
+            return;
+        }
         
+        if (selectedCardIds.length > 1) {
+            // Fetch all transactions across selected cards for the selected month
+            const [year, month] = selectedMonth.split('-').map(Number);
+            const cardIdsParam = selectedCardIds.join(',');
+            const res = await fetch(`/api/invoices/all?year=${year}&month=${month}&cardIds=${cardIdsParam}`);
+            if (res.ok) {
+                const all: Transaction[] = await res.json();
+                setTransactions(all);
+            } else {
+                setTransactions([]);
+            }
+            return;
+        }
+        
+        // Single card selected
+        const selectedCard = selectedCardIds[0];
         // Buscar a fatura correspondente ao mês selecionado
         const [year, month] = selectedMonth.split('-').map(Number);
         const currentInvoice = invoices.find(invoice =>
@@ -68,7 +89,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
         } else {
             setTransactions([]);
         }
-    }, [user, selectedCard, selectedMonth, invoices]);
+    }, [user, selectedCardIds, selectedMonth, invoices]);
 
     useEffect(() => {
         fetchTransactions();
@@ -133,10 +154,10 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
     }, [user, loadData]);
 
     useEffect(() => {
-        if (cards.length > 0 && !selectedCard) {
-            setSelectedCard(cards[0].cardId);
+        if (cards.length > 0 && selectedCardIds.length === 0) {
+            setSelectedCardIds(cards.map(c => c.cardId));
         }
-    }, [cards, selectedCard]);
+    }, [cards, selectedCardIds.length]);
 
     useEffect(() => {
         if (!selectedMonth) {
@@ -145,8 +166,14 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
         }
     }, [selectedMonth]);
 
+    const getSelectedCards = () => {
+        return cards.filter(card => selectedCardIds.includes(card.cardId));
+    };
+
     const getSelectedCard = () => {
-        return cards.find(card => card.cardId === selectedCard);
+        return selectedCardIds.length === 1 
+            ? cards.find(card => card.cardId === selectedCardIds[0])
+            : undefined;
     };
 
     const getInvoiceForMonth = (cardId: string, yearMonth: string) => {
@@ -347,8 +374,8 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
     }
 
     const selectedCardData = getSelectedCard();
-    const currentInvoice = selectedCard && selectedMonth ?
-        getInvoiceForMonth(selectedCard, selectedMonth) : null;
+    const currentInvoice = selectedCardIds.length === 1 && selectedMonth ?
+        getInvoiceForMonth(selectedCardIds[0], selectedMonth) : null;
 
     return (
         <div className="space-y-6">
@@ -377,7 +404,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                 <h2 className="text-xl font-semibold text-foreground">💳 Fatura do Cartão</h2>
                 <Button
                     onClick={() => setTransactionDialogOpen(true)}
-                    disabled={!selectedCardData}
+                    disabled={selectedCardIds.length !== 1}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
                 >
                     <span className="mr-2">+</span>
@@ -408,19 +435,13 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-foreground">
-                                        💳 Cartão
+                                        💳 Cartões
                                     </label>
-                                    <select
-                                        value={selectedCard}
-                                        onChange={(e) => setSelectedCard(e.target.value)}
-                                        className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                                    >
-                                        {cards.map((card) => (
-                                            <option key={card.cardId} value={card.cardId}>
-                                                {card.alias} - {card.brand}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <MultiCardSelector
+                                        cards={cards}
+                                        selectedCardIds={selectedCardIds}
+                                        onSelectionChange={setSelectedCardIds}
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
@@ -443,7 +464,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                         </div>
                     </Card>
 
-                    {selectedCardData && (
+                    {selectedCardIds.length > 0 && (
                         <Card className="bg-card border-border shadow-md">
                             <div className="p-6">
                                 <div className="flex items-center justify-between mb-6">
@@ -451,17 +472,17 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                         <div className="text-2xl">💳</div>
                                         <div>
                                             <h2 className="text-xl font-semibold text-foreground">
-                                                {selectedCardData.alias}
+                                                {selectedCardIds.length === 1 && selectedCardData ? selectedCardData.alias : `${selectedCardIds.length} Cartões`}
                                             </h2>
                                             <p className="text-muted-foreground">
-                                                {selectedCardData.brand} • Fatura {selectedMonth}
+                                                {selectedCardIds.length === 1 && selectedCardData ? `${selectedCardData.brand} • Fatura ${selectedMonth}` : `Consolidado • Fatura ${selectedMonth}`}
                                             </p>
                                         </div>
                                     </div>
                                     {currentInvoice && getStatusBadge(currentInvoice.status)}
                                 </div>
 
-                                {currentInvoice ? (
+                                {(selectedCardIds.length > 1 || currentInvoice) ? (
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
@@ -470,36 +491,64 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                                     Valor Total da Fatura
                                                 </h3>
                                                 <CurrencyDisplay
-                                                    amount={transactions.reduce((sum, t) => sum + (t.amount || 0), 0)}
+                                                    amount={filteredTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)}
                                                     size="xl"
                                                     variant="negative"
                                                 />
                                             </div>
 
-                                            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
-                                                <div className="text-3xl mb-3">📅</div>
-                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                                                    Data de Vencimento
-                                                </h3>
-                                                <div className="text-lg font-semibold text-foreground">
-                                                    {currentInvoice.dueDate ? formatDate(new Date(currentInvoice.dueDate)) : 'N/A'}
-                                                </div>
-                                            </div>
+                                            {selectedCardIds.length === 1 && currentInvoice && (
+                                                <>
+                                                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                        <div className="text-3xl mb-3">📅</div>
+                                                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                            Data de Vencimento
+                                                        </h3>
+                                                        <div className="text-lg font-semibold text-foreground">
+                                                            {currentInvoice.dueDate ? formatDate(new Date(currentInvoice.dueDate)) : 'N/A'}
+                                                        </div>
+                                                    </div>
 
-                                            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
-                                                <div className="text-3xl mb-3">
-                                                    {currentInvoice.status === 'paid' ? '✅' : '⏳'}
-                                                </div>
-                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                                                    Status da Fatura
-                                                </h3>
-                                                <div className="flex justify-center">
-                                                    {getStatusBadge(currentInvoice.status)}
-                                                </div>
-                                            </div>
+                                                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                        <div className="text-3xl mb-3">
+                                                            {currentInvoice.status === 'paid' ? '✅' : '⏳'}
+                                                        </div>
+                                                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                            Status da Fatura
+                                                        </h3>
+                                                        <div className="flex justify-center">
+                                                            {getStatusBadge(currentInvoice.status)}
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                            
+                                            {selectedCardIds.length > 1 && (
+                                                <>
+                                                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                        <div className="text-3xl mb-3">💳</div>
+                                                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                            Total de Cartões
+                                                        </h3>
+                                                        <div className="text-2xl font-semibold text-foreground">
+                                                            {cards.length}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                                                        <div className="text-3xl mb-3">📋</div>
+                                                        <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                                                            Total de Transações
+                                                        </h3>
+                                                        <div className="text-2xl font-semibold text-foreground">
+                                                            {filteredTransactions.length}
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
 
-                                        {currentInvoice.status === 'open' && (
+                                        {selectedCardIds.length === 1 && currentInvoice && currentInvoice.status === 'open' && (
                                             <div className="flex justify-center">
                                                 <Button
                                                     onClick={() => markInvoiceAsPaid(currentInvoice.invoiceId)}
@@ -510,7 +559,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                             </div>
                                         )}
 
-                                        {currentInvoice.status === 'paid' && (
+                                        {selectedCardIds.length === 1 && currentInvoice && currentInvoice.status === 'paid' && (
                                             <div className="flex justify-center">
                                                 <Button
                                                     onClick={() => reopenInvoice(currentInvoice.invoiceId)}
@@ -531,13 +580,15 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                         <p className="text-muted-foreground mb-4">
                                             Não há dados para esta competência ainda.
                                         </p>
-                                        <Button
-                                            onClick={() => setTransactionDialogOpen(true)}
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                        >
-                                            <span className="mr-2">+</span>
-                                            Criar Lançamento
-                                        </Button>
+                                        {selectedCardIds.length === 1 && (
+                                            <Button
+                                                onClick={() => setTransactionDialogOpen(true)}
+                                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                            >
+                                                <span className="mr-2">+</span>
+                                                Criar Lançamento
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -560,6 +611,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                     <Button
                                         size="sm"
                                         onClick={() => setTransactionDialogOpen(true)}
+                                        disabled={selectedCardIds.length !== 1}
                                         className="bg-primary text-primary-foreground hover:bg-primary/90"
                                     >
                                         <span className="mr-2">+</span>
