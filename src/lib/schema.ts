@@ -238,7 +238,10 @@ export const invoicesInSalem = salem.table(
     cardId: uuid("card_id").notNull(),
     month: integer("month").notNull(),
     year: integer("year").notNull(),
-    dueDate: date("due_date").notNull(),
+    dueDate: timestamp("due_date", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
     paidAmount: integer("paid_amount")
       .default(sql`0`)
       .notNull(),
@@ -336,7 +339,7 @@ export const transactionsInSalem = salem.table(
     description: text("description").notNull(),
     amount: bigint("amount", { mode: "number" }).notNull(),
     type: text("type").notNull(),
-    date: date("date").notNull(),
+    date: timestamp("date", { withTimezone: true, mode: "string" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
       .defaultNow()
       .notNull(),
@@ -364,9 +367,7 @@ export const transactionsInSalem = salem.table(
         table.date
       ),
       idxTransactionsCardId: index("idx_transactions_card_id").on(table.cardId),
-      idxTransactionsTags: index("idx_transactions_tags").on(
-        table.tags
-      ),
+      idxTransactionsTags: index("idx_transactions_tags").on(table.tags),
       idxTransactionsUserId: index("idx_transactions_user_id").on(table.userId),
       pkey: uniqueIndex("transactions_pkey").on(table.transactionId),
     };
