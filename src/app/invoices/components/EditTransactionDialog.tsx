@@ -51,6 +51,8 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
         if (transaction) {
             setDescription(transaction.description || '');
             setAmount(transaction.amount || 0);
+            // Extract UTC date (YYYY-MM-DD) from timestamp for HTML date input
+            // This ensures the date shown matches the stored UTC date
             setDate(transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '');
             const tx = transaction as TxWithCat;
             setCategory(tx.category || '');

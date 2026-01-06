@@ -278,9 +278,28 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
 
             // Tags filter
             if (filters.selectedTags.length > 0) {
-                if (!transaction.tags || !Array.isArray(transaction.tags)) return false;
-                const hasMatchingTag = filters.selectedTags.some(tag => transaction.tags?.includes(tag));
-                if (!hasMatchingTag) return false;
+                const hasNoTagsFilter = filters.selectedTags.includes('__no_tags__');
+                const regularTags = filters.selectedTags.filter(tag => tag !== '__no_tags__');
+                
+                // If transaction has no tags
+                const transactionHasNoTags = !transaction.tags || !Array.isArray(transaction.tags) || transaction.tags.length === 0;
+                
+                if (hasNoTagsFilter && transactionHasNoTags) {
+                    // Transaction matches "no tags" filter
+                    return true;
+                }
+                
+                if (regularTags.length > 0 && transaction.tags && Array.isArray(transaction.tags)) {
+                    const hasMatchingTag = regularTags.some(tag => transaction.tags?.includes(tag));
+                    if (hasMatchingTag) {
+                        return true;
+                    }
+                }
+                
+                // If we get here and there are filters applied, no match was found
+                if (hasNoTagsFilter || regularTags.length > 0) {
+                    return false;
+                }
             }
 
             // Categories filter

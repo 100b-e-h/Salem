@@ -48,6 +48,7 @@ export function NewTransactionDialog({
     const [selectedCardId, setSelectedCardId] = useState<string>(card?.cardId || '');
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState(0);
+    // Date stored as UTC timestamp (midnight), displayed as date-only in HTML input
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [category, setCategory] = useState('');
     const [tags, setTags] = useState<string[]>([]);
@@ -57,6 +58,7 @@ export function NewTransactionDialog({
     const [installments, setInstallments] = useState(1);
     const [mode, setMode] = useState<'single' | 'multiple' | 'csv'>('single');
     const [targetMonth, setTargetMonth] = useState(selectedMonth);
+    const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
     const [multipleTransactions, setMultipleTransactions] = useState<Array<{
         id: string;
         description: string;
@@ -67,6 +69,13 @@ export function NewTransactionDialog({
         installments: number;
         tags: string[];
     }>>([]);
+
+    React.useEffect(() => {
+        // Reset payment type to cash when switching to refund/income
+        if (transactionType === 'income') {
+            setPaymentType('cash');
+        }
+    }, [transactionType]);
 
     React.useEffect(() => {
         if (open) {
@@ -131,11 +140,16 @@ export function NewTransactionDialog({
             return;
         }
 
+        if (!selectedCardId) {
+            alert('Por favor, selecione um cartão.');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             for (const t of multipleTransactions) {
                 const [year, month] = t.targetMonth.split('-').map(Number);
-                const response = await fetch(`/api/cards/${card.cardId}/transactions`, {
+                const response = await fetch(`/api/cards/${selectedCardId}/transactions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -212,6 +226,7 @@ export function NewTransactionDialog({
                     tags: tags.length > 0 ? tags : null,
                     invoiceMonth: month,
                     invoiceYear: year,
+                    type: transactionType,
                 }),
             });
 
@@ -225,6 +240,7 @@ export function NewTransactionDialog({
             setDate(new Date().toISOString().split('T')[0]);
             setPaymentType('cash');
             setInstallments(1);
+            setTransactionType('expense');
 
             onClose();
             onTransactionCreated();
@@ -275,7 +291,7 @@ export function NewTransactionDialog({
             <DialogContent className={`bg-card border-border shadow-lg transition-all duration-300 ${mode === 'multiple' ? 'sm:max-w-6xl' : 'sm:max-w-2xl'}`}>
                 <DialogHeader>
                     <DialogTitle className="text-xl font-semibold text-foreground">
-                        💳 Novo Lançamento
+                        {mode === 'single' && transactionType === 'income' ? '💰 Novo Reembolso' : '💳 Novo Lançamento'}
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground mt-2">
                         {card ? (
@@ -337,6 +353,39 @@ export function NewTransactionDialog({
                             </div>
                         )}
                         
+                        <div className="space-y-3">
+                            <Label className="text-foreground font-medium">
+                                📊 Tipo de Lançamento
+                            </Label>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTransactionType('expense')}
+                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${transactionType === 'expense'
+                                        ? 'bg-red-600 text-white border-red-600'
+                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    💸 Despesa
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTransactionType('income')}
+                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${transactionType === 'income'
+                                        ? 'bg-green-600 text-white border-green-600'
+                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                        }`}
+                                >
+                                    💰 Reembolso
+                                </button>
+                            </div>
+                            {transactionType === 'income' && (
+                                <p className="text-xs text-muted-foreground bg-green-50 dark:bg-green-950 p-2 rounded border border-green-200 dark:border-green-800">
+                                    ℹ️ Reembolsos abaterão o valor total da fatura do cartão
+                                </p>
+                            )}
+                        </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="description" className="text-foreground font-medium">
                                 Descrição
@@ -344,7 +393,7 @@ export function NewTransactionDialog({
                             <Input
                                 id="description"
                                 type="text"
-                                placeholder="Ex: Mercado, Restaurante, Combustível..."
+                                placeholder={transactionType === 'expense' ? "Ex: Mercado, Restaurante, Combustível..." : "Ex: Estorno, Cashback, Reembolso..."}
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 className="bg-background border-border text-foreground"
@@ -355,7 +404,7 @@ export function NewTransactionDialog({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="amount" className="text-foreground font-medium">
-                                    Valor
+                                    {transactionType === 'income' ? 'Valor do Reembolso' : 'Valor'}
                                 </Label>
                                 <MoneyInput
                                     id="amount"
@@ -363,7 +412,7 @@ export function NewTransactionDialog({
                                     allowNegative={false}
                                     required
                                     value={amount === 0 ? '' : (amount / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    className="bg-background border-border text-foreground"
+                                    className={`bg-background border-border ${transactionType === 'income' ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-foreground'}`}
                                 />
                             </div>
 
@@ -418,16 +467,20 @@ export function NewTransactionDialog({
                                 <button
                                     type="button"
                                     onClick={() => setPaymentType('installment')}
-                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${paymentType === 'installment'
-                                        ? 'bg-primary text-primary-foreground border-primary'
-                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                    disabled={transactionType === 'income'}
+                                    className={`flex-1 py-2 px-4 rounded-lg border font-medium transition-colors ${
+                                        transactionType === 'income'
+                                            ? 'opacity-50 cursor-not-allowed bg-muted text-muted-foreground border-border'
+                                            : paymentType === 'installment'
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-background text-foreground border-border hover:bg-muted'
                                         }`}
                                 >
                                     📅 Parcelado
                                 </button>
                             </div>
 
-                            {paymentType === 'installment' && (
+                            {paymentType === 'installment' && transactionType === 'expense' && (
                                 <div className="space-y-2">
                                     <Label htmlFor="installments" className="text-foreground font-medium">
                                         Número de Parcelas
@@ -497,9 +550,9 @@ export function NewTransactionDialog({
                             <Button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                className={transactionType === 'income' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-primary text-primary-foreground hover:bg-primary/90'}
                             >
-                                {isSubmitting ? 'Salvando...' : '💾 Salvar Lançamento'}
+                                {isSubmitting ? 'Salvando...' : transactionType === 'income' ? '💰 Salvar Reembolso' : '💾 Salvar Lançamento'}
                             </Button>
                         </div>
                     </form>
