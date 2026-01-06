@@ -31,7 +31,7 @@ export function EditCardDialog({ open, onClose, card, onCardUpdated }: EditCardD
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const response = await fetch(`/api/cards/${card.id}`, {
+            const response = await fetch(`/api/cards/${card.cardId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ alias, brand, totalLimit, closingDay, dueDay }),
