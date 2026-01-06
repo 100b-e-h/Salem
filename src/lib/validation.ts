@@ -36,7 +36,12 @@ export const uuidSchema = z.string().uuid("ID inválido");
 
 export const dateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD")
+  .refine((date: string) => {
+    // Accept both YYYY-MM-DD and ISO 8601 timestamp formats
+    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+    const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+    return dateOnlyPattern.test(date) || isoPattern.test(date);
+  }, "Data deve estar no formato YYYY-MM-DD ou ISO 8601")
   .refine((date: string) => {
     const parsed = new Date(date);
     return (
@@ -69,13 +74,33 @@ export const createTransactionSchema = z.object({
   description: z.string().min(1, "Descrição é obrigatória"),
   date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
+    .refine((date: string) => {
+      // Accept both YYYY-MM-DD and ISO 8601 timestamp formats
+      const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+      const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+      return dateOnlyPattern.test(date) || isoPattern.test(date);
+    }, "Data deve estar no formato YYYY-MM-DD ou ISO 8601")
+    .transform((date: string) => {
+      // Always convert to UTC midnight to avoid timezone issues
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        // Date-only format - use as-is with midnight UTC
+        return `${date}T00:00:00.000Z`;
+      }
+      // If already ISO format, extract date and normalize to midnight UTC
+      const parsedDate = new Date(date);
+      const year = parsedDate.getUTCFullYear();
+      const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(parsedDate.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}T00:00:00.000Z`;
+    }),
   category: z.string().nullable().optional(),
   installments: z.number().int().min(1).optional().default(1),
-  tags: z.array(z.string()).optional().default([]),
+  installmentOffset: z.number().int().min(0).optional().default(0),
+  tags: z.array(z.string()).nullable().optional().default([]).transform(val => val ?? []),
   invoiceMonth: z.number().int().min(1).max(12).optional(),
   invoiceYear: z.number().int().min(2000).max(2100).optional(),
   financeType: z.enum(["installment", "upfront", "subscription"]).default("upfront"),
+  type: z.enum(["expense", "income"]).optional().default("expense"),
 });
 
 export const createInvoiceSchema = z.object({
