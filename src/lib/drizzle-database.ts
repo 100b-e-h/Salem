@@ -14,7 +14,6 @@ import {
   type NewAccount,
   type NewCard,
   type NewInvoice,
-  type NewTransaction,
 } from "./db_types";
 
 import { reaisToCentavos, centavosToReais } from "@/utils/money";
@@ -34,7 +33,7 @@ class DrizzleDatabase {
     const result = await db
       .select()
       .from(accounts)
-      .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
+      .where(and(eq(accounts.accountId, id), eq(accounts.userId, userId)))
       .limit(1);
 
     return result[0] || null;
@@ -83,7 +82,7 @@ class DrizzleDatabase {
     const result = await db
       .update(accounts)
       .set(updateData)
-      .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
+      .where(and(eq(accounts.accountId, id), eq(accounts.userId, userId)))
       .returning();
 
     return result[0];
@@ -92,7 +91,7 @@ class DrizzleDatabase {
   async deleteAccount(id: string, userId: string): Promise<void> {
     await db
       .delete(accounts)
-      .where(and(eq(accounts.id, id), eq(accounts.userId, userId)));
+      .where(and(eq(accounts.accountId, id), eq(accounts.userId, userId)));
   }
 
   async getAllCards(userId: string): Promise<Card[]> {
@@ -109,7 +108,7 @@ class DrizzleDatabase {
     const result = await db
       .select()
       .from(cards)
-      .where(and(eq(cards.id, id), eq(cards.userId, userId)))
+      .where(and(eq(cards.cardId, id), eq(cards.userId, userId)))
       .limit(1);
 
     return result[0] || null;
@@ -162,7 +161,7 @@ class DrizzleDatabase {
     const result = await db
       .update(cards)
       .set(updateData)
-      .where(and(eq(cards.id, id), eq(cards.userId, userId)))
+      .where(and(eq(cards.cardId, id), eq(cards.userId, userId)))
       .returning();
 
     return result[0];
@@ -171,7 +170,7 @@ class DrizzleDatabase {
   async deleteCard(id: string, userId: string): Promise<void> {
     await db
       .delete(cards)
-      .where(and(eq(cards.id, id), eq(cards.userId, userId)));
+      .where(and(eq(cards.cardId, id), eq(cards.userId, userId)));
   }
 
   async getAllInvoices(userId: string): Promise<Invoice[]> {
@@ -212,7 +211,6 @@ class DrizzleDatabase {
       cardId: invoiceData.cardId,
       month: invoiceData.month,
       year: invoiceData.year,
-      totalAmount: reaisToCentavos(invoiceData.totalAmount), // Converte para centavos
       paidAmount: reaisToCentavos(invoiceData.paidAmount || 0), // Converte para centavos
       dueDate: invoiceData.dueDate,
       closingDate: invoiceData.closingDate,
@@ -237,8 +235,6 @@ class DrizzleDatabase {
   ): Promise<Invoice> {
     const updateData: Partial<NewInvoice> = {};
 
-    if (invoiceData.totalAmount !== undefined)
-      updateData.totalAmount = reaisToCentavos(invoiceData.totalAmount);
     if (invoiceData.paidAmount !== undefined)
       updateData.paidAmount = reaisToCentavos(invoiceData.paidAmount);
     if (invoiceData.dueDate) updateData.dueDate = invoiceData.dueDate;
@@ -249,7 +245,7 @@ class DrizzleDatabase {
     const result = await db
       .update(invoices)
       .set(updateData)
-      .where(and(eq(invoices.id, id), eq(invoices.userId, userId)))
+      .where(and(eq(invoices.invoiceId, id), eq(invoices.userId, userId)))
       .returning();
 
     return result[0];
@@ -258,7 +254,7 @@ class DrizzleDatabase {
   async deleteInvoice(id: string, userId: string): Promise<void> {
     await db
       .delete(invoices)
-      .where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+      .where(and(eq(invoices.invoiceId, id), eq(invoices.userId, userId)));
   }
 
   // Buscar faturas em aberto (não pagas)
@@ -328,7 +324,7 @@ class DrizzleDatabase {
         const [card] = await db
           .select()
           .from(cards)
-          .where(eq(cards.id, cardId));
+          .where(eq(cards.cardId, cardId));
 
         if (card) {
           const dueDate = new Date(year, month - 1, card.dueDay);
@@ -405,16 +401,33 @@ class DrizzleDatabase {
     const [invoice] = await db
       .select()
       .from(invoices)
-      .where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+      .where(and(eq(invoices.invoiceId, id), eq(invoices.userId, userId)));
 
     if (!invoice) {
       throw new Error("Invoice not found");
     }
 
+    // Buscar todas as transações da fatura
+    const invoiceTransactions = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.invoiceId, id),
+          eq(transactions.userId, userId)
+        )
+      );
+
+    // Calcular o total das transações (já em centavos)
+    const totalAmount = invoiceTransactions.reduce(
+      (sum, transaction) => sum + transaction.amount,
+      0
+    );
+
     return await this.updateInvoice(
       id,
       {
-        paidAmount: centavosToReais(invoice.totalAmount),
+        paidAmount: centavosToReais(totalAmount),
         status: "paid",
       },
       userId
@@ -477,7 +490,7 @@ class DrizzleDatabase {
   async deleteTransaction(id: string, userId: string): Promise<void> {
     await db
       .delete(transactions)
-      .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+      .where(and(eq(transactions.transactionId, id), eq(transactions.userId, userId)));
   }
 
   formatAccountForDisplay(account: Account) {
@@ -503,7 +516,6 @@ class DrizzleDatabase {
   formatInvoiceForDisplay(invoice: Invoice) {
     return {
       ...invoice,
-      totalAmountInReais: centavosToReais(invoice.totalAmount),
       paidAmountInReais: centavosToReais(invoice.paidAmount),
     };
   }
