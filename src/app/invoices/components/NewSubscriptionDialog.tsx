@@ -30,6 +30,7 @@ export const NewSubscriptionDialog: React.FC<NewSubscriptionDialogProps> = ({
         amountCentavos: 0,
         categoryId: '',
         chargeDay: '1',
+        // Date stored as UTC timestamp (midnight), displayed as date-only in HTML input
         transactionDate: new Date().toISOString().split('T')[0], // Date when subscription is charged
         tags: [] as string[]
     });
