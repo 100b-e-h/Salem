@@ -125,15 +125,15 @@ export function NewTransactionDialog({
         setMultipleTransactions(prev => prev.filter(t => t.id !== id));
     };
 
-    const handleRowChange = (id: string, field: string, value: any) => {
-        setMultipleTransactions(prev => prev.map(t => 
+    const handleRowChange = (id: string, field: string, value: string | number | string[]) => {
+        setMultipleTransactions(prev => prev.map(t =>
             t.id === id ? { ...t, [field]: value } : t
         ));
     };
 
     const handleSaveMultiple = async () => {
         if (!user || isSubmitting) return;
-        
+
         const invalid = multipleTransactions.find(t => !t.description || t.amount <= 0 || !t.category);
         if (invalid) {
             alert('Preencha todos os campos obrigatórios (Descrição, Valor, Categoria) em todas as linhas.');
@@ -165,7 +165,7 @@ export function NewTransactionDialog({
                 });
                 if (!response.ok) throw new Error('Failed to create transaction');
             }
-            
+
             setMultipleTransactions([]);
             setMode('single');
             onClose();
@@ -182,7 +182,7 @@ export function NewTransactionDialog({
         const options = [];
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-        
+
         for (let i = 0; i < 15; i++) {
             const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
             const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -352,7 +352,7 @@ export function NewTransactionDialog({
                                 </select>
                             </div>
                         )}
-                        
+
                         <div className="space-y-3">
                             <Label className="text-foreground font-medium">
                                 📊 Tipo de Lançamento
@@ -706,7 +706,7 @@ export function NewTransactionDialog({
                                 </select>
                             </div>
                         )}
-                        
+
                         <div className="space-y-2">
                             <Label htmlFor="csv" className="text-foreground font-medium">
                                 Arquivo CSV
