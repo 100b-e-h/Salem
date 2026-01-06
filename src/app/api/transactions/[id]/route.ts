@@ -13,6 +13,7 @@ import type {
 } from "@/lib/db_types";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, sql } from "drizzle-orm";
+import { normalizeDateString } from "@/utils/invoice";
 
 // Helper function to remove installment suffix from description (e.g., " (1/6)")
 function stripInstallmentSuffix(description: string): string {
@@ -73,6 +74,9 @@ export async function PATCH(
 
       // Strip installment suffix from description if provided
       const cleanDescription = description !== undefined ? stripInstallmentSuffix(description) : undefined;
+      
+      // Normalize date if provided
+      const normalizedDate = date !== undefined ? normalizeDateString(date) : undefined;
 
       // 1. Atualizar o registro base no installmentsInSalem
       await db
@@ -80,7 +84,7 @@ export async function PATCH(
         .set({
           ...(cleanDescription !== undefined ? { installmentBaseDescription: cleanDescription } : {}),
           ...(amount !== undefined ? { installmentAmount: Number(amount) } : {}),
-          ...(date !== undefined ? { date } : {}),
+          ...(normalizedDate !== undefined ? { date: normalizedDate } : {}),
           ...(category !== undefined ? { category } : {}),
           ...(tags !== undefined ? { tags } : {}),
           updatedAt: new Date().toISOString(),
@@ -149,12 +153,15 @@ export async function PATCH(
       return NextResponse.json(updated);
     } else {
       // Atualização normal de transação única
+      // Normalize date if provided
+      const normalizedDate = date !== undefined ? normalizeDateString(date) : undefined;
+      
       await db
         .update(transactions)
         .set({
           ...(description !== undefined ? { description } : {}),
           ...(amount !== undefined ? { amount: Number(amount) } : {}),
-          ...(date !== undefined ? { date } : {}),
+          ...(normalizedDate !== undefined ? { date: normalizedDate } : {}),
           ...(category !== undefined ? { category } : {}),
           ...(tags !== undefined ? { tags } : {}),
           ...(installments !== undefined
