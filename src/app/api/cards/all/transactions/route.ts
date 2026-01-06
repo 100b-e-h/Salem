@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const conditions = [eq(transactionsInSalem.userId, user.id)];
 
     if (financeType) {
-      conditions.push(eq(transactionsInSalem.financeType, financeType as any));
+      conditions.push(eq(transactionsInSalem.financeType, financeType));
     }
 
     // Fetch all transactions
