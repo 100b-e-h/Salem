@@ -34,6 +34,13 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
     const [isSaving, setIsSaving] = useState(false);
     const [invoices, setInvoices] = useState<Array<{invoiceId: string, month: number, year: number, cardId: string}>>([]);
 
+    type InvoiceData = {
+        invoiceId: string;
+        month: number;
+        year: number;
+        cardId: string;
+    };
+
     const CATEGORIES = [
         { value: 'alimentacao', label: '🍔 Alimentação' },
         { value: 'transporte', label: '🚗 Transporte' },
@@ -60,13 +67,13 @@ export const EditTransactionDialog: React.FC<EditTransactionDialogProps> = ({ op
             setInstallments(transaction.installments || 1);
             setFinanceType(transaction.financeType || 'upfront');
             setInvoiceId(transaction.invoiceId || '');
-            
+
             // Fetch invoices for the card
             if (transaction.cardId) {
                 fetch('/api/invoices')
                     .then(res => res.json())
-                    .then(data => {
-                        const cardInvoices = data.filter((inv: any) => inv.cardId === transaction.cardId);
+                    .then((data: InvoiceData[]) => {
+                        const cardInvoices = data.filter((inv) => inv.cardId === transaction.cardId);
                         setInvoices(cardInvoices);
                     })
                     .catch(err => console.error('Failed to fetch invoices:', err));
