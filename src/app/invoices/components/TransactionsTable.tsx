@@ -2,6 +2,7 @@ import React from "react";
 import { CurrencyDisplay } from '@/components/ui/CurrencyDisplay';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { formatDateOnly } from '@/utils/invoice';
 import type { Transaction as TxType } from '@/types';
 
 type TxWithCategory = TxType & { category?: string; categoryId?: string };
@@ -56,7 +57,8 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                     ) : (
                         transactions.map((tx) => (
                             <tr key={tx.transactionId} className="border-t border-border hover:bg-muted/40 transition-colors">
-                                <td className="px-3 py-2 whitespace-nowrap">{new Date(tx.date).toLocaleDateString()}</td>
+                                {/* Display UTC date without timezone conversion */}
+                                <td className="px-3 py-2 whitespace-nowrap">{formatDateOnly(tx.date)}</td>
                                 <td className="px-3 py-2 max-w-xs truncate">{tx.description}</td>
                                 <td className="px-3 py-2">{getCategoryLabel(tx)}</td>
                                 <td className="px-3 py-2">
@@ -79,7 +81,17 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactio
                                 </td>
                                 <td className="px-3 py-2">{getFinanceTypeLabel(tx)}</td>
                                 <td className="px-3 py-2 text-right">
-                                    <CurrencyDisplay amount={tx.amount} />
+                                    <div className="flex items-center justify-end gap-2">
+                                        {tx.type === 'income' && (
+                                            <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                                💰 Reembolso
+                                            </Badge>
+                                        )}
+                                        <CurrencyDisplay 
+                                            amount={tx.amount} 
+                                            className={tx.type === 'income' ? 'text-green-600 dark:text-green-400 font-semibold' : ''}
+                                        />
+                                    </div>
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                     <div className="flex gap-1 justify-center">

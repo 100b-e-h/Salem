@@ -51,12 +51,24 @@ export const InvoiceFiltersPopover: React.FC<InvoiceFiltersPopoverProps> = ({
     // Extract unique tags from all transactions
     const availableTags = React.useMemo(() => {
         const tagsSet = new Set<string>();
+        let hasTransactionsWithoutTags = false;
+        
         transactions.forEach(t => {
-            if (t.tags && Array.isArray(t.tags)) {
+            if (t.tags && Array.isArray(t.tags) && t.tags.length > 0) {
                 t.tags.forEach(tag => tagsSet.add(tag));
+            } else {
+                hasTransactionsWithoutTags = true;
             }
         });
-        return Array.from(tagsSet).sort();
+        
+        const tagsArray = Array.from(tagsSet).sort();
+        
+        // Add "no-tags" option if there are transactions without tags
+        if (hasTransactionsWithoutTags) {
+            tagsArray.unshift('__no_tags__');
+        }
+        
+        return tagsArray;
     }, [transactions]);
 
     // Extract unique categories from all transactions
@@ -291,7 +303,7 @@ export const InvoiceFiltersPopover: React.FC<InvoiceFiltersPopoverProps> = ({
                                             htmlFor={`tag-${tag}`}
                                             className="text-sm font-normal cursor-pointer text-foreground"
                                         >
-                                            {tag}
+                                            {tag === '__no_tags__' ? '🚫 Sem tags' : tag}
                                         </Label>
                                     </div>
                                 ))}
