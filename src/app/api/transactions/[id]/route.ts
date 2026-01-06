@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/drizzle";
-import { 
-  transactionsInSalem as transactions, 
-  invoicesInSalem as invoices, 
-  cardsInSalem as cards, 
-  installmentsInSalem 
+import {
+  transactionsInSalem as transactions,
+  installmentsInSalem
 } from "@/lib/schema";
-import type {
-  Transaction as TxType,
-  Invoice as InvoiceType,
-  Card as CardType,
-} from "@/lib/db_types";
+
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, sql } from "drizzle-orm";
 import { normalizeDateString } from "@/utils/invoice";
@@ -74,7 +68,7 @@ export async function PATCH(
 
       // Strip installment suffix from description if provided
       const cleanDescription = description !== undefined ? stripInstallmentSuffix(description) : undefined;
-      
+
       // Normalize date if provided
       const normalizedDate = date !== undefined ? normalizeDateString(date) : undefined;
 
@@ -155,7 +149,7 @@ export async function PATCH(
       // Atualização normal de transação única
       // Normalize date if provided
       const normalizedDate = date !== undefined ? normalizeDateString(date) : undefined;
-      
+
       await db
         .update(transactions)
         .set({
@@ -165,7 +159,7 @@ export async function PATCH(
           ...(category !== undefined ? { category } : {}),
           ...(tags !== undefined ? { tags } : {}),
           ...(installments !== undefined
-            ? { 
+            ? {
                 installments: Number(installments),
                 financeType: Number(installments) > 1 ? "installment" : "upfront"
               }
@@ -180,7 +174,7 @@ export async function PATCH(
         .select()
         .from(transactions)
         .where(eq(transactions.transactionId, id));
-      
+
       // Refresh materialized views
       try {
         await db.execute(sql`REFRESH MATERIALIZED VIEW CONCURRENTLY salem.invoices_summary`);
