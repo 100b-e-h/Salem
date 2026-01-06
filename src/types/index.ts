@@ -94,7 +94,7 @@ export interface Category {
   updatedAt: Date;
 }
 
-export type TransactionType = "despesa" | "receita" | "transferencia";
+export type TransactionType = "despesa" | "receita" | "transferencia" | "expense" | "income";
 export type FinanceType = "installment" | "upfront" | "subscription";
 
 export interface Transaction {
