@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/drizzle";
-import { 
-  transactionsInSalem as transactions, 
-  cardsInSalem as cards, 
-  invoicesInSalem as invoices, 
-  installmentsInSalem 
+import {
+  transactionsInSalem as transactions,
+  cardsInSalem as cards,
+  invoicesInSalem as invoices,
+  installmentsInSalem
 } from "@/lib/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -149,15 +149,15 @@ export async function POST(
 
     if (validatedData.installments > 1) {
       // Lógica para transações parceladas
-      
+
       // 1. Primeiro, criar o registro base no installmentsInSalem
       const installmentAmount = Math.round(
         validatedData.amount / validatedData.installments
       );
-      
+
       // Strip any installment suffix from the description before storing
       const cleanDescription = stripInstallmentSuffix(validatedData.description);
-      
+
       const [installmentBase] = await db
         .insert(installmentsInSalem)
         .values({
@@ -197,9 +197,20 @@ export async function POST(
         // Calcular qual fatura essa parcela deve pertencer
         let invoicePeriod;
         if (validatedData.invoiceMonth && validatedData.invoiceYear) {
-            let targetMonth = validatedData.invoiceMonth + i;
+            // Se installmentOffset foi fornecido, precisamos calcular o mês inicial correto
+            // Exemplo: Se estamos na parcela 10/12 em janeiro (offset = 9),
+            // a parcela 1/12 deveria estar em abril do ano anterior (janeiro - 9 meses)
+            const installmentOffset = validatedData.installmentOffset || 0;
+
+            // Calcular o mês da primeira parcela
+            let targetMonth = validatedData.invoiceMonth - installmentOffset + i;
             let targetYear = validatedData.invoiceYear;
 
+            // Ajustar ano se o mês for negativo ou maior que 12
+            while (targetMonth < 1) {
+                targetMonth += 12;
+                targetYear -= 1;
+            }
             while (targetMonth > 12) {
                 targetMonth -= 12;
                 targetYear += 1;
@@ -270,7 +281,7 @@ export async function POST(
               validatedData.installments
             })`,
             type: "expense",
-            date: installmentDate.toISOString().split("T")[0],
+            date: installmentDate.toISOString(),
             category: validatedData.category || null,
             installments: validatedData.installments,
             currentInstallment: i + 1,
@@ -349,14 +360,19 @@ export async function POST(
       throw new Error("Failed to create or find invoice");
     }
 
+    // Para reembolsos (income), o valor deve ser negativo para abater da fatura
+    const transactionAmount = validatedData.type === "income"
+      ? -Math.round(Math.abs(validatedData.amount))
+      : Math.round(Math.abs(validatedData.amount));
+
     const [newTransaction] = await db
       .insert(transactions)
       .values({
         userId: user.id,
         cardId: validCardId,
-        amount: Math.round(Math.abs(validatedData.amount)),
+        amount: transactionAmount,
         description: validatedData.description,
-        type: "expense",
+        type: validatedData.type || "expense",
         date: validatedData.date,
         category: validatedData.category || null,
         installments: 1,
@@ -369,7 +385,7 @@ export async function POST(
 
     // Determine which materialized view to refresh based on finance type
     const financeTypeToRefresh = validatedData.financeType || "upfront";
-    
+
     // Refresh appropriate materialized view after creating transaction
     try {
       if (financeTypeToRefresh === 'subscription') {
@@ -384,7 +400,7 @@ export async function POST(
         if (financeTypeToRefresh === 'subscription') {
           await db.execute(sql`
             CREATE MATERIALIZED VIEW IF NOT EXISTS salem.subscriptions_summary AS
-            SELECT 
+            SELECT
               t.transaction_id,
               t.user_id,
               t.card_id,
@@ -402,7 +418,7 @@ export async function POST(
         } else {
           await db.execute(sql`
             CREATE MATERIALIZED VIEW IF NOT EXISTS salem.invoices_summary AS
-            SELECT 
+            SELECT
               i.invoice_id,
               i.user_id,
               i.card_id,
@@ -418,8 +434,8 @@ export async function POST(
               i.updated_at
             FROM salem.invoices i
             LEFT JOIN salem.transactions t ON i.invoice_id = t.invoice_id
-            GROUP BY i.invoice_id, i.user_id, i.card_id, i.month, i.year, 
-                     i.due_date, i.closing_date, i.status, i.paid_amount, 
+            GROUP BY i.invoice_id, i.user_id, i.card_id, i.month, i.year,
+                     i.due_date, i.closing_date, i.status, i.paid_amount,
                      i.created_at, i.updated_at;
           `);
           console.log('Created invoices_summary materialized view');
