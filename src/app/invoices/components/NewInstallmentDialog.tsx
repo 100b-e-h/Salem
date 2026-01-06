@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { TagsInput } from '@/components/ui/TagsInput';
 import { Card as CardType } from '@/types';
+import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
     { value: 'alimentacao', label: '🍔 Alimentação' },
@@ -41,7 +42,9 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
         description: '',
         installmentAmountCentavos: 0,
         installments: '2',
+        currentInstallmentNumber: '1', // Nova propriedade
         categoryId: 'outros',
+        // Date stored as UTC timestamp (midnight), displayed as date-only in HTML input
         purchaseDate: new Date().toISOString().split('T')[0],
         tags: [] as string[]
     });
@@ -76,9 +79,9 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     const getMonthOptions = () => {
         const options = [];
         const today = new Date();
-        const start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        const start = new Date(today.getFullYear(), today.getMonth() - 24, 1);
         
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 39; i++) { // 24 meses atrás + 15 meses à frente
             const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
             const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -86,6 +89,46 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
             options.push({ value, label: formattedLabel });
         }
         return options;
+    };
+
+    // Nova função para calcular preview das parcelas
+    const getInstallmentPreview = () => {
+        if (!selectedMonth) return [];
+        
+        const totalInstallments = parseInt(formData.installments);
+        const currentInstallment = parseInt(formData.currentInstallmentNumber);
+        const [year, month] = selectedMonth.split('-').map(Number);
+        
+        const preview = [];
+        
+        // Calcular a partir de qual mês começou o parcelamento
+        // Se estamos na parcela 10/12 em janeiro, significa que a parcela 1 foi em abril do ano anterior
+        const monthsBack = currentInstallment - 1; // Quantos meses atrás começou
+        
+        // Mostrar até 5 parcelas (incluindo anteriores e futuras)
+        const startIndex = Math.max(0, currentInstallment - 3); // Mostrar até 2 parcelas anteriores
+        const endIndex = Math.min(totalInstallments, currentInstallment + 2); // Mostrar até 2 parcelas futuras
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            const installmentNum = i + 1;
+            
+            // Calcular o offset do mês baseado na parcela atual
+            // Se currentInstallment = 10 e estamos vendo installmentNum = 1, 
+            // então offset = 1 - 10 = -9 (9 meses atrás)
+            const monthOffset = installmentNum - currentInstallment;
+            const date = new Date(year, month - 1 + monthOffset, 1);
+            const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+            
+            preview.push({
+                installmentNum,
+                month: monthLabel,
+                isSelected: installmentNum === currentInstallment,
+                isPast: installmentNum < currentInstallment,
+                isFuture: installmentNum > currentInstallment
+            });
+        }
+        
+        return preview;
     };
 
     const calculateTotalValue = () => {
@@ -113,6 +156,8 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
             // Criar transação parcelada
             const totalAmount = (formData.installmentAmountCentavos * parseInt(formData.installments)) / 100;
             const [year, month] = selectedMonth.split('-').map(Number);
+            const currentInstallment = parseInt(formData.currentInstallmentNumber);
+            const installmentOffset = currentInstallment - 1; // Quantas parcelas já passaram
             
             const response = await fetch(`/api/cards/${selectedCardId}/transactions`, {
                 method: 'POST',
@@ -121,8 +166,9 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                 },
                 body: JSON.stringify({
                     description: formData.description,
-                    amount: Math.round(totalAmount * 100), // Converter para centavos e garantir inteiro
+                    amount: Math.round(totalAmount * 100),
                     installments: parseInt(formData.installments),
+                    installmentOffset, // Novo campo
                     category: formData.categoryId,
                     date: formData.purchaseDate,
                     invoiceMonth: month,
@@ -145,6 +191,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                 description: '',
                 installmentAmountCentavos: 0,
                 installments: '2',
+                currentInstallmentNumber: '1',
                 categoryId: 'outros',
                 purchaseDate: new Date().toISOString().split('T')[0],
                 tags: []
@@ -159,10 +206,12 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
 
     if (!open) return null;
 
+    const installmentPreview = getInstallmentPreview();
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto shadow-xl border border-border/40">
                     <h2 className="text-xl font-semibold mb-4">
                         📊 Nova Compra Parcelada {card ? `- ${card.alias}` : ''}
                     </h2>
@@ -232,21 +281,44 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium mb-2">
-                                Número de Parcelas
-                            </label>
-                            <select
-                                value={formData.installments}
-                                onChange={(e) => setFormData(prev => ({ ...prev, installments: e.target.value }))}
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-background"
-                            >
-                                {Array.from({ length: 24 }, (_, i) => (
-                                    <option key={i + 2} value={i + 2}>
-                                        {i + 2}x
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Número de Parcelas
+                                </label>
+                                <select
+                                    value={formData.installments}
+                                    onChange={(e) => setFormData(prev => ({ 
+                                        ...prev, 
+                                        installments: e.target.value,
+                                        currentInstallmentNumber: '1' // Reset quando mudar total
+                                    }))}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                >
+                                    {Array.from({ length: 24 }, (_, i) => (
+                                        <option key={i + 2} value={i + 2}>
+                                            {i + 2}x
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Parcela Atual
+                                </label>
+                                <select
+                                    value={formData.currentInstallmentNumber}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, currentInstallmentNumber: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                                >
+                                    {Array.from({ length: parseInt(formData.installments) }, (_, i) => (
+                                        <option key={i + 1} value={i + 1}>
+                                            {i + 1}/{formData.installments}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="p-3 bg-muted rounded-lg">
@@ -286,6 +358,52 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                             </select>
                         </div>
 
+                        {/* Preview das parcelas */}
+                        {installmentPreview.length > 0 && (
+                            <div className="p-3 bg-muted/50 rounded-lg border border-border/40">
+                                <p className="text-xs font-medium text-muted-foreground mb-2">
+                                    📅 Distribuição das Parcelas:
+                                </p>
+                                <div className="space-y-1">
+                                    {parseInt(formData.currentInstallmentNumber) > 1 && installmentPreview[0].installmentNum > 1 && (
+                                        <div className="text-xs text-muted-foreground px-2 italic">
+                                            ... {installmentPreview[0].installmentNum - 1} parcela(s) anterior(es)
+                                        </div>
+                                    )}
+                                    {installmentPreview.map((item) => (
+                                        <div 
+                                            key={item.installmentNum}
+                                            className={cn(
+                                                "text-xs px-2 py-1 rounded transition-colors",
+                                                item.isSelected 
+                                                    ? "bg-primary/10 text-primary font-medium border border-primary/20" 
+                                                    : item.isPast
+                                                    ? "text-muted-foreground/60 bg-muted/30"
+                                                    : "text-muted-foreground"
+                                            )}
+                                        >
+                                            <span className={cn(item.isPast && "line-through")}>
+                                                {item.month}: Parcela {item.installmentNum}/{formData.installments}
+                                            </span>
+                                            {item.isSelected && " ← Mês Selecionado"}
+                                            {item.isPast && " (já lançada)"}
+                                        </div>
+                                    ))}
+                                    {installmentPreview[installmentPreview.length - 1].installmentNum < parseInt(formData.installments) && (
+                                        <div className="text-xs text-muted-foreground px-2 italic">
+                                            ... e mais {parseInt(formData.installments) - installmentPreview[installmentPreview.length - 1].installmentNum} parcela(s)
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {parseInt(formData.currentInstallmentNumber) > 1 && (
+                                    <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                                        💡 <strong>Nota:</strong> As parcelas anteriores à {formData.currentInstallmentNumber}/{formData.installments} serão criadas retroativamente nos meses passados.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-sm font-medium mb-2">
                                 Tags
@@ -303,15 +421,23 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                 variant="outline"
                                 onClick={onClose}
                                 className="flex-1"
+                                disabled={loading}
                             >
                                 Cancelar
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 bg-primary text-primary-foreground"
+                                className="flex-1 bg-primary text-primary-foreground relative overflow-hidden"
                             >
-                                {loading ? 'Criando...' : 'Criar Parcelamento'}
+                                {loading ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                                        Criando Parcelas...
+                                    </span>
+                                ) : (
+                                    'Criar Parcelamento'
+                                )}
                             </Button>
                         </div>
                     </form>

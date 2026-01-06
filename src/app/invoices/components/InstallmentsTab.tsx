@@ -64,8 +64,10 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
 
     const handleEditTransaction = (tx: Transaction) => {
         // Note: Editing an installment will affect all related installments with the same transaction reference
+        console.log('Edit clicked for transaction:', tx);
         setEditingTransaction(tx);
         setEditDialogOpen(true);
+        console.log('Dialog should open now, editDialogOpen:', true);
     };
 
     const handleDeleteInstallment = async (tx: Transaction) => {
@@ -180,9 +182,28 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
 
             // Tags filter
             if (filters.selectedTags.length > 0) {
-                if (!transaction.tags || !Array.isArray(transaction.tags)) return false;
-                const hasMatchingTag = filters.selectedTags.some(tag => transaction.tags?.includes(tag));
-                if (!hasMatchingTag) return false;
+                const hasNoTagsFilter = filters.selectedTags.includes('__no_tags__');
+                const regularTags = filters.selectedTags.filter(tag => tag !== '__no_tags__');
+                
+                // If transaction has no tags
+                const transactionHasNoTags = !transaction.tags || !Array.isArray(transaction.tags) || transaction.tags.length === 0;
+                
+                if (hasNoTagsFilter && transactionHasNoTags) {
+                    // Transaction matches "no tags" filter
+                    return true;
+                }
+                
+                if (regularTags.length > 0 && transaction.tags && Array.isArray(transaction.tags)) {
+                    const hasMatchingTag = regularTags.some(tag => transaction.tags?.includes(tag));
+                    if (hasMatchingTag) {
+                        return true;
+                    }
+                }
+                
+                // If we get here and there are filters applied, no match was found
+                if (hasNoTagsFilter || regularTags.length > 0) {
+                    return false;
+                }
             }
 
             // Categories filter
@@ -225,27 +246,26 @@ export const InstallmentsTab: React.FC<InstallmentsTabProps> = ({ user }) => {
 
     return (
         <div className="space-y-6">
+            <EditInstallmentDialog
+                open={editDialogOpen}
+                onOpenChange={(open) => setEditDialogOpen(open)}
+                transaction={editingTransaction}
+                onSaved={() => {
+                    fetchInstallments();
+                    loadCards();
+                }}
+            />
+            
             {selectedCardData && (
-                <>
-                    <NewInstallmentDialog
-                        open={installmentDialogOpen}
-                        onClose={() => setInstallmentDialogOpen(false)}
-                        onInstallmentCreated={() => {
-                            fetchInstallments();
-                            loadCards();
-                        }}
-                        card={selectedCardData}
-                    />
-                    <EditInstallmentDialog
-                        open={editDialogOpen}
-                        onOpenChange={(open) => setEditDialogOpen(open)}
-                        transaction={editingTransaction}
-                        onSaved={() => {
-                            fetchInstallments();
-                            loadCards();
-                        }}
-                    />
-                </>
+                <NewInstallmentDialog
+                    open={installmentDialogOpen}
+                    onClose={() => setInstallmentDialogOpen(false)}
+                    onInstallmentCreated={() => {
+                        fetchInstallments();
+                        loadCards();
+                    }}
+                    card={selectedCardData}
+                />
             )}
 
             <div className="flex items-center justify-between">
