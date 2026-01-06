@@ -83,7 +83,7 @@ export async function POST(
     const [account] = await db
       .select()
       .from(accounts)
-      .where(and(eq(accounts.id, accountId), eq(accounts.userId, user.id)));
+      .where(and(eq(accounts.accountId, accountId), eq(accounts.userId, user.id)));
 
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
@@ -118,9 +118,9 @@ export async function POST(
       .update(accounts)
       .set({
         balance: newBalance,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       })
-      .where(eq(accounts.id, accountId));
+      .where(eq(accounts.accountId, accountId));
 
     return NextResponse.json(newTransaction, { status: 201 });
   } catch (error) {
