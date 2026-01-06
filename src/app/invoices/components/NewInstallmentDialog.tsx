@@ -80,7 +80,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
         const options = [];
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth() - 24, 1);
-        
+
         for (let i = 0; i < 39; i++) { // 24 meses atrás + 15 meses à frente
             const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
             const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -94,31 +94,27 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
     // Nova função para calcular preview das parcelas
     const getInstallmentPreview = () => {
         if (!selectedMonth) return [];
-        
+
         const totalInstallments = parseInt(formData.installments);
         const currentInstallment = parseInt(formData.currentInstallmentNumber);
         const [year, month] = selectedMonth.split('-').map(Number);
-        
+
         const preview = [];
-        
-        // Calcular a partir de qual mês começou o parcelamento
-        // Se estamos na parcela 10/12 em janeiro, significa que a parcela 1 foi em abril do ano anterior
-        const monthsBack = currentInstallment - 1; // Quantos meses atrás começou
-        
+
         // Mostrar até 5 parcelas (incluindo anteriores e futuras)
         const startIndex = Math.max(0, currentInstallment - 3); // Mostrar até 2 parcelas anteriores
         const endIndex = Math.min(totalInstallments, currentInstallment + 2); // Mostrar até 2 parcelas futuras
-        
+
         for (let i = startIndex; i < endIndex; i++) {
             const installmentNum = i + 1;
-            
+
             // Calcular o offset do mês baseado na parcela atual
-            // Se currentInstallment = 10 e estamos vendo installmentNum = 1, 
+            // Se currentInstallment = 10 e estamos vendo installmentNum = 1,
             // então offset = 1 - 10 = -9 (9 meses atrás)
             const monthOffset = installmentNum - currentInstallment;
             const date = new Date(year, month - 1 + monthOffset, 1);
             const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-            
+
             preview.push({
                 installmentNum,
                 month: monthLabel,
@@ -127,7 +123,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                 isFuture: installmentNum > currentInstallment
             });
         }
-        
+
         return preview;
     };
 
@@ -158,7 +154,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
             const [year, month] = selectedMonth.split('-').map(Number);
             const currentInstallment = parseInt(formData.currentInstallmentNumber);
             const installmentOffset = currentInstallment - 1; // Quantas parcelas já passaram
-            
+
             const response = await fetch(`/api/cards/${selectedCardId}/transactions`, {
                 method: 'POST',
                 headers: {
@@ -237,7 +233,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                 </select>
                             </div>
                         )}
-                        
+
                         <div>
                             <label className="block text-sm font-medium mb-2">
                                 Descrição da Compra
@@ -288,8 +284,8 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                 </label>
                                 <select
                                     value={formData.installments}
-                                    onChange={(e) => setFormData(prev => ({ 
-                                        ...prev, 
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
                                         installments: e.target.value,
                                         currentInstallmentNumber: '1' // Reset quando mudar total
                                     }))}
@@ -371,12 +367,12 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                         </div>
                                     )}
                                     {installmentPreview.map((item) => (
-                                        <div 
+                                        <div
                                             key={item.installmentNum}
                                             className={cn(
                                                 "text-xs px-2 py-1 rounded transition-colors",
-                                                item.isSelected 
-                                                    ? "bg-primary/10 text-primary font-medium border border-primary/20" 
+                                                item.isSelected
+                                                    ? "bg-primary/10 text-primary font-medium border border-primary/20"
                                                     : item.isPast
                                                     ? "text-muted-foreground/60 bg-muted/30"
                                                     : "text-muted-foreground"
@@ -395,7 +391,7 @@ export const NewInstallmentDialog: React.FC<NewInstallmentDialogProps> = ({
                                         </div>
                                     )}
                                 </div>
-                                
+
                                 {parseInt(formData.currentInstallmentNumber) > 1 && (
                                     <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
                                         💡 <strong>Nota:</strong> As parcelas anteriores à {formData.currentInstallmentNumber}/{formData.installments} serão criadas retroativamente nos meses passados.
