@@ -72,6 +72,11 @@ export async function GET(
     }
 
     const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const validInvoiceId = invoiceIdResult.data;
 
     // Buscar summary da fatura da materialized view
