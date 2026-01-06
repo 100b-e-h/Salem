@@ -49,7 +49,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
             setTransactions([]);
             return;
         }
-        
+
         if (selectedCardIds.length > 1) {
             // Fetch all transactions across selected cards for the selected month
             const [year, month] = selectedMonth.split('-').map(Number);
@@ -63,7 +63,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
             }
             return;
         }
-        
+
         // Single card selected
         const selectedCard = selectedCardIds[0];
         // Buscar a fatura correspondente ao mês selecionado
@@ -166,12 +166,8 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
         }
     }, [selectedMonth]);
 
-    const getSelectedCards = () => {
-        return cards.filter(card => selectedCardIds.includes(card.cardId));
-    };
-
     const getSelectedCard = () => {
-        return selectedCardIds.length === 1 
+        return selectedCardIds.length === 1
             ? cards.find(card => card.cardId === selectedCardIds[0])
             : undefined;
     };
@@ -280,22 +276,22 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
             if (filters.selectedTags.length > 0) {
                 const hasNoTagsFilter = filters.selectedTags.includes('__no_tags__');
                 const regularTags = filters.selectedTags.filter(tag => tag !== '__no_tags__');
-                
+
                 // If transaction has no tags
                 const transactionHasNoTags = !transaction.tags || !Array.isArray(transaction.tags) || transaction.tags.length === 0;
-                
+
                 if (hasNoTagsFilter && transactionHasNoTags) {
                     // Transaction matches "no tags" filter
                     return true;
                 }
-                
+
                 if (regularTags.length > 0 && transaction.tags && Array.isArray(transaction.tags)) {
                     const hasMatchingTag = regularTags.some(tag => transaction.tags?.includes(tag));
                     if (hasMatchingTag) {
                         return true;
                     }
                 }
-                
+
                 // If we get here and there are filters applied, no match was found
                 if (hasNoTagsFilter || regularTags.length > 0) {
                     return false;
@@ -541,7 +537,7 @@ export const GeneralInvoicesTab: React.FC<GeneralInvoicesTabProps> = ({ user }) 
                                                     </div>
                                                 </>
                                             )}
-                                            
+
                                             {selectedCardIds.length > 1 && (
                                                 <>
                                                     <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
