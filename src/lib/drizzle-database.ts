@@ -201,8 +201,8 @@ class DrizzleDatabase {
       year: number;
       totalAmount: number; // Valor em REAIS (será convertido para centavos)
       paidAmount?: number; // Valor em REAIS (será convertido para centavos)
-      dueDate: string; // YYYY-MM-DD format
-      closingDate: string; // YYYY-MM-DD format
+      dueDate: string; // ISO 8601 timestamp format
+      closingDate: string; // ISO 8601 timestamp format
       status?: "open" | "paid" | "overdue";
     },
     userId: string
@@ -341,8 +341,8 @@ class DrizzleDatabase {
               year,
               totalAmount: 0,
               paidAmount: 0,
-              dueDate: dueDate.toISOString().split("T")[0],
-              closingDate: closingDate.toISOString().split("T")[0],
+              dueDate: dueDate.toISOString(),
+              closingDate: closingDate.toISOString(),
               status: "open",
             },
             userId
@@ -459,7 +459,7 @@ class DrizzleDatabase {
           transactionData.installments
         })`,
         type: "expense",
-        date: installmentDate.toISOString().split("T")[0],
+        date: installmentDate.toISOString(),
         category: transactionData.category || null,
         installments: transactionData.installments,
         currentInstallment: i + 1,
