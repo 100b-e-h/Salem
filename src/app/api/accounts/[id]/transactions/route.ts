@@ -3,6 +3,7 @@ import { db } from "@/lib/drizzle";
 import { transactionsInSalem as transactions, accountsInSalem as accounts } from "@/lib/schema";
 import { createClient } from "@/lib/supabase/server";
 import { eq, and, desc } from "drizzle-orm";
+import { normalizeDateString } from "@/utils/invoice";
 
 // GET - Listar transações de uma conta
 export async function GET(
@@ -95,6 +96,9 @@ export async function POST(
       signedAmount = -absAmount;
     }
 
+    // Normalize the date string to ISO timestamp
+    const normalizedDate = normalizeDateString(date);
+
     // Criar a transação
     const [newTransaction] = await db
       .insert(transactions)
@@ -104,7 +108,7 @@ export async function POST(
         amount: signedAmount,
         description,
         type,
-        date,
+        date: normalizedDate,
       })
       .returning();
 
