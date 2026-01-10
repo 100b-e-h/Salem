@@ -107,7 +107,7 @@ export const cardsInSalem = salem.table(
     userId: uuid("user_id").notNull(),
     alias: text("alias").notNull(),
     brand: text("brand").notNull(),
-    totalLimit: integer("total_limit").notNull(),
+    totalLimit: bigint("total_limit", { mode: "number" }).notNull(),
     closingDay: integer("closing_day").notNull(),
     dueDay: integer("due_day").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
