@@ -21,7 +21,7 @@ interface EditCardDialogProps {
 export function EditCardDialog({ open, onClose, card, onCardUpdated }: EditCardDialogProps) {
     const [alias, setAlias] = useState(card.alias);
     const [brand, setBrand] = useState(card.brand);
-    const [totalLimit, setTotalLimit] = useState<number>(card.totalLimit);
+    const [totalLimit, setTotalLimit] = useState<number>(card.totalLimit / 100);
     const [closingDay, setClosingDay] = useState<number>(card.closingDay);
     const [dueDay, setDueDay] = useState<number>(card.dueDay);
     const [isSubmitting, setIsSubmitting] = useState(false);
